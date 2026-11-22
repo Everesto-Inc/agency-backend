@@ -74,6 +74,3 @@ cd services/model_gateway && uv run --extra test pytest -k routing    # focused
 Tests never call real models or the internet: `agency_platform.testing` provides `FakeLLM` and
 `fake_context`. Real-model checks are the quality worker's job ([LLMOps](llmops.md)).
 
----
-
-[← Data (MySQL & Redis)](data.md) · **[Next: CI/CD & operations →](operations.md)**

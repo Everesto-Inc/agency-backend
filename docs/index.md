@@ -71,6 +71,3 @@ deploy/  ci/              Kubernetes manifests (moving to agency-backend-gitops)
     **CI** — the Pipelines tab of the orchid space ·
     **Code quality** — SonarQube in the Quality tab · **Redis data** — [redis.everesto.live](https://redis.everesto.live) (platform-team).
 
----
-
-**[Next: Run it locally →](getting-started.md)**

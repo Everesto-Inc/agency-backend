@@ -81,6 +81,3 @@ sequenceDiagram
 | `config/` | hot-reloaded YAML parameters and prompts, validated by schemas |
 | `security/` | PII redaction, SSRF-safe fetching, grounding checks, untrusted-content fencing |
 
----
-
-[← Run it locally](getting-started.md) · **[Next: Using the APIs →](apis.md)**

@@ -94,6 +94,3 @@ AGENCY_TEST_DATABASE_URL=mysql://agency:localdev@127.0.0.1:33069/agency_test uv 
 | `403 SUBSCRIPTION_REQUIRED` | your plan doesn't include that topic — use an admin/pro account |
 | `429 QUOTA_EXCEEDED` | daily token/cost limit of your plan reached (resets 00:00 UTC) |
 
----
-
-[← Start here](index.md) · **[Next: Architecture →](architecture.md)**

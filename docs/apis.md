@@ -85,6 +85,3 @@ display names; month-over-month change in %.
 
 Typed client for the frontend: `npx openapi-typescript openapi/edge-gateway.json -o src/api/schema.d.ts`.
 
----
-
-[← Architecture](architecture.md) · **[Next: LLMOps (models, usage, quality) →](llmops.md)**
