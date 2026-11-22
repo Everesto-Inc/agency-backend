@@ -11,6 +11,10 @@ Part of `oracle/apps/llmops/autonomous-agency/`, one git repo each:
 
 (`deploy/` here still holds the manifests until they move to agency-backend-gitops.)
 
+**Documentation for developers: Backstage → `agency-backend` → Tech Docs** (source: [`docs/`](docs/index.md)) —
+start with *Run it locally*, then *Architecture*. **API reference: Backstage → APIs** (from [`openapi/`](openapi/),
+regenerated with `bash ci/export_openapi.sh`; CI fails if it is stale).
+
 A multi-agent platform where every topic agent is its own service, built on
 whatever framework suits it, and every one gets the same LLMOps guarantees from
 a shared platform:

@@ -33,3 +33,7 @@ for pkg in "${PACKAGES[@]}"; do
   )
   echo "::endgroup::"
 done
+
+echo "::group::OpenAPI specs (openapi/ = what Backstage shows)"
+bash ci/export_openapi.sh --check
+echo "::endgroup::"

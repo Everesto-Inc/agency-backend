@@ -57,3 +57,7 @@ htmlcov/
 
 # CI test artefacts
 coverage.xml
+
+# root pyproject.toml is only shared lint config — packages have their own uv.lock
+/uv.lock
+/.venv/
