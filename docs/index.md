@@ -15,16 +15,33 @@ ask anything at `/chat`, and the question is routed to the right assistant. Ever
 assistant goes through **one model gateway**, which picks the Gemini model and records tokens and cost.
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '15px', 'lineColor': '#64748b', 'primaryColor': '#e0f2fe', 'primaryBorderColor': '#0284c7', 'primaryTextColor': '#0c4a6e'}}}%%
 flowchart LR
-  U[User / frontend] -->|HTTPS| E[edge gateway<br/>auth · /chat · usage · dashboards]
-  E --> EV[EV Helper<br/>LangGraph]
-  E --> PF[Product Finder<br/>CrewAI]
-  E --> FI[Finance Analyst<br/>AutoGen]
-  EV & PF & FI -->|every LLM call| G[model gateway<br/>tier routing · cost ledger]
-  G --> GEM[(Gemini)]
-  E & EV & PF & FI & G --> DB[(MySQL / HeatWave)]
-  E & EV & PF & FI & G --> R[(Redis)]
+  U([👤 User / frontend]) -->|HTTPS| E[🚪 edge gateway<br/>auth · /chat · usage · dashboards]
+  E --> EV[🔋 EV Helper<br/>LangGraph]
+  E --> PF[🛒 Product Finder<br/>CrewAI]
+  E --> FI[📈 Finance Analyst<br/>AutoGen]
+  EV & PF & FI -->|every LLM call| G[🧭 model gateway<br/>tier routing · cost ledger]
+  G --> GEM[(✨ Gemini)]
+  E & EV & PF & FI & G --> DB[(🗄️ MySQL / HeatWave)]
+  E & EV & PF & FI & G --> R[(⚡ Redis)]
+  classDef user fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px
+  classDef gateway fill:#dbeafe,stroke:#2563eb,color:#1e3a8a,stroke-width:2px
+  classDef ev fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:2px
+  classDef pf fill:#fce7f3,stroke:#db2777,color:#831843,stroke-width:2px
+  classDef fin fill:#ede9fe,stroke:#7c3aed,color:#4c1d95,stroke-width:2px
+  classDef llm fill:#ffedd5,stroke:#ea580c,color:#7c2d12,stroke-width:2px
+  classDef store fill:#f1f5f9,stroke:#475569,color:#0f172a,stroke-width:2px
+  class U user
+  class E,G gateway
+  class EV ev
+  class PF pf
+  class FI fin
+  class GEM llm
+  class DB,R store
 ```
+
+<small>🟨 user · 🟦 gateways · 🟩🟪🟥 the three assistants · 🟧 model provider · ⬜ data stores</small>
 
 ## New here? Read in this order
 
@@ -53,3 +70,7 @@ deploy/  ci/              Kubernetes manifests (moving to agency-backend-gitops)
     **APIs** — interactive docs of every endpoint (Definition tab of each API) ·
     **CI** — the Pipelines tab of the orchid space ·
     **Code quality** — SonarQube in the Quality tab · **Redis data** — [redis.everesto.live](https://redis.everesto.live) (platform-team).
+
+---
+
+**[Next: Run it locally →](getting-started.md)**

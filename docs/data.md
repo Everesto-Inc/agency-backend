@@ -45,3 +45,7 @@ Browse it: [redis.everesto.live](https://redis.everesto.live) (GitHub login, pla
     In the platform Redis each app gets its own user, limited to keys starting with its `REDIS_KEY_PREFIX`
     (Backstage → Create deployment → Redis). The agency's keys don't carry that prefix yet — needed before
     it uses the shared Redis.
+
+---
+
+[← Configuration & secrets](configuration.md) · **[Next: Development guide →](development.md)**

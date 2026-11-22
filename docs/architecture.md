@@ -18,26 +18,36 @@ library `libs/agency_platform`, so a new topic gets auth, quotas, tracking and s
 ## What happens during one question
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '14px', 'actorBkg': '#dbeafe', 'actorBorder': '#2563eb', 'actorTextColor': '#1e3a8a', 'signalColor': '#334155', 'signalTextColor': '#0f172a', 'noteBkgColor': '#fef3c7', 'noteBorderColor': '#d97706', 'loopTextColor': '#7c2d12', 'labelBoxBkgColor': '#ffedd5', 'labelBoxBorderColor': '#ea580c', 'activationBkgColor': '#e0f2fe', 'sequenceNumberColor': '#ffffff'}}}%%
 sequenceDiagram
-  actor U as User
-  participant E as edge gateway
-  participant T as topic service (e.g. EV Helper)
-  participant G as model gateway
-  participant M as Gemini
-  participant DB as MySQL
-  participant R as Redis
+  autonumber
+  actor U as 👤 User
+  box rgb(219, 234, 254) agency services
+    participant E as 🚪 edge gateway
+    participant T as 🔋 topic service (e.g. EV Helper)
+    participant G as 🧭 model gateway
+  end
+  box rgb(255, 237, 213) model provider
+    participant M as ✨ Gemini
+  end
+  box rgb(241, 245, 249) data
+    participant DB as 🗄️ MySQL
+    participant R as ⚡ Redis
+  end
   U->>E: POST /api/v1/chat (Bearer token)
   E->>R: account + plan (60 s cache)
   E->>E: pick the topic (keywords, cheap LLM call only if unclear)
   E->>T: POST /api/v1/ev_research/run (same token)
   T->>R: preflight: plan includes topic? rate limit, daily token/cost quota
   T->>DB: agent_runs: status running
+  rect rgb(240, 253, 244)
   loop every LLM call of the agent
     T->>G: OpenAI-style call, model = "task-synthesis" (never a model name)
     G->>G: route to tier (low/mid/high) ≤ plan ceiling, redact PII
     G->>M: call the chosen Gemini model (fallback on error)
     G->>R: live tokens + cost per user/topic
     G->>DB: llm_calls + usage_daily (batched)
+  end
   end
   T-->>U: streamed events: status, token (answer), usage, done
   T->>DB: agent_runs: tokens, cost, latency, answer (PII-redacted)
@@ -70,3 +80,7 @@ sequenceDiagram
 | `repositories/` | **all SQL** (runs, usage, LLM calls, evals, admin metrics, retention) |
 | `config/` | hot-reloaded YAML parameters and prompts, validated by schemas |
 | `security/` | PII redaction, SSRF-safe fetching, grounding checks, untrusted-content fencing |
+
+---
+
+[← Run it locally](getting-started.md) · **[Next: Using the APIs →](apis.md)**

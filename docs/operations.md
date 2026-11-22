@@ -41,3 +41,7 @@ Kubernetes Secret → environment of the pods. Nothing secret is ever in git.
 
 Prometheus rules (`deploy/monitoring/prometheus/alerts.yml`): cost spikes, model error rate and latency,
 failing runs, judge score drop, drift flags, eval pass rate.
+
+---
+
+[← Development guide](development.md) · **[Next: Glossary →](glossary.md)**
