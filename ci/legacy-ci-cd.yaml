@@ -1,0 +1,243 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      promote_to_prod:
+        description: "Promote the image tags currently in overlays/dev to overlays/prod"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
+  UV_VERSION: "0.13.7"
+
+jobs:
+  # ------------------------------------------------------------------ what changed
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.pick.outputs.services }}
+      llm_behaviour: ${{ steps.filter.outputs.llm_behaviour }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            platform: ['libs/**', 'Dockerfile', 'config/**', 'prompts/**', 'migrations/**']
+            model_gateway: ['services/model_gateway/**']
+            edge_gateway: ['services/edge_gateway/**']
+            topic_ev_research: ['services/topic_ev_research/**']
+            topic_product_finder: ['services/topic_product_finder/**']
+            topic_finance: ['services/topic_finance/**']
+            quality_worker: ['services/quality_worker/**']
+            # Anything that can change what users get back from an LLM -> live quality gate.
+            llm_behaviour: ['prompts/**', 'config/models.yaml', 'config/topics.yaml', 'config/agents/**',
+                            'services/topic_*/**', 'services/model_gateway/**', 'evals/datasets/**']
+      - id: pick
+        run: |
+          all='["model_gateway","edge_gateway","topic_ev_research","topic_product_finder","topic_finance","quality_worker"]'
+          if [ "${{ steps.filter.outputs.platform }}" = "true" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "services=$all" >> "$GITHUB_OUTPUT"
+          else
+            echo 'services=${{ steps.filter.outputs.changes }}' | sed -E 's/"(platform|llm_behaviour)",?//g; s/,]/]/' >> "$GITHUB_OUTPUT"
+          fi
+
+  # ------------------------------------------------------------------ quality gates
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: gitleaks/gitleaks-action@v2
+        env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: { version: "${{ env.UV_VERSION }}" }
+      - run: uv tool run ruff check libs services
+      - name: Alert rules in sync (single source -> PrometheusRule)
+        run: uv run --with pyyaml python scripts/sync_alert_rules.py --check
+
+  test:
+    needs: changes
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [libs/agency_platform, services/model_gateway, services/edge_gateway,
+                  services/topic_ev_research, services/topic_product_finder, services/topic_finance,
+                  services/quality_worker]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: { version: "${{ env.UV_VERSION }}", enable-cache: true }
+      - name: Install (locked)
+        working-directory: ${{ matrix.package }}
+        run: uv sync --frozen --extra test --python 3.13
+      - name: Tests (incl. offline routing evals)
+        working-directory: ${{ matrix.package }}
+        run: uv run --frozen pytest -q
+      - name: Dependency audit
+        working-directory: ${{ matrix.package }}
+        run: uv export --frozen --no-dev --no-emit-project --format requirements-txt > /tmp/req.txt && uv tool run pip-audit -r /tmp/req.txt --disable-pip --no-deps || echo "::warning::pip-audit reported issues"
+
+  k8s-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+      - name: Render overlays
+        run: |
+          for env in dev prod; do
+            kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/overlays/$env > /tmp/$env.yaml
+          done
+      - name: Schema validation
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz
+          ./kubeconform -strict -ignore-missing-schemas -summary /tmp/dev.yaml /tmp/prod.yaml
+
+  # ------------------------------------------------------------------ live LLM quality gate
+  # PRs that can change LLM behaviour boot the full stack with real models, run the
+  # smoke-tagged eval datasets with LLM-as-judge and fail on regression vs
+  # evals/baselines. Skipped (with a notice) until provider keys are configured
+  # as repository secrets.
+  quality-gate:
+    needs: [changes, test]
+    if: github.event_name == 'pull_request' && needs.changes.outputs.llm_behaviour == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      HAS_KEYS: ${{ secrets.GEMINI_API_KEY != '' && secrets.TAVILY_API_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Skip notice
+        if: env.HAS_KEYS != 'true'
+        run: echo "::notice::quality-gate skipped -- add GEMINI_API_KEY and TAVILY_API_KEY repository secrets to enable it"
+      - name: Prepare secrets
+        if: env.HAS_KEYS == 'true'
+        run: |
+          python3 scripts/gen_secrets.py > .env
+          {
+            echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}"
+            echo "TAVILY_API_KEY=${{ secrets.TAVILY_API_KEY }}"
+            echo "GIT_SHA=${{ github.sha }}"
+          } >> .env
+      - name: Boot stack
+        if: env.HAS_KEYS == 'true'
+        run: |
+          docker compose up -d --build --wait
+          docker compose --profile quality run --rm eval-user
+      - name: Evals + regression gate
+        if: env.HAS_KEYS == 'true'
+        run: docker compose --profile quality run --rm quality-worker offline --tags smoke --gate
+      - name: Upload eval reports
+        if: always() && env.HAS_KEYS == 'true'
+        uses: actions/upload-artifact@v4
+        with: { name: eval-reports, path: evals/reports/ }
+      - name: Stack logs on failure
+        if: failure() && env.HAS_KEYS == 'true'
+        run: docker compose logs --tail 200
+
+  # ------------------------------------------------------------------ build + scan + push
+  build:
+    needs: [changes, test, lint, secret-scan, k8s-validate]
+    if: github.event_name != 'pull_request' && needs.changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    permissions: { contents: read, packages: write }
+    strategy:
+      matrix:
+        service: ${{ fromJSON(needs.changes.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: meta
+        run: |
+          case "${{ matrix.service }}" in
+            model_gateway)        echo "image=model-gateway module=model_gateway.main:app pw=false" ;;
+            edge_gateway)         echo "image=edge-gateway module=edge_gateway.main:app pw=false" ;;
+            topic_ev_research)    echo "image=topic-ev-research module=ev_research.main:app pw=true" ;;
+            topic_product_finder) echo "image=topic-product-finder module=product_finder.main:app pw=false" ;;
+            topic_finance)        echo "image=topic-finance module=finance.main:app pw=false" ;;
+            quality_worker)       echo "image=quality-worker module=quality.__main__:main pw=false" ;;
+          esac | tr ' ' '\n' >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: ${{ env.REGISTRY }}/${{ steps.meta.outputs.image }}:${{ github.sha }}
+          build-args: |
+            SERVICE=${{ matrix.service }}
+            MODULE=${{ steps.meta.outputs.module }}
+            INSTALL_PLAYWRIGHT=${{ steps.meta.outputs.pw }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+      - name: Image vulnerability scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ steps.meta.outputs.image }}:${{ github.sha }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+      - run: docker push ${{ env.REGISTRY }}/${{ steps.meta.outputs.image }}:${{ github.sha }}
+
+  # ------------------------------------------------------------------ GitOps: bump tags, Argo CD syncs
+  deploy-dev:
+    needs: [changes, build]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bump image tags in overlays/dev
+        run: |
+          cd deploy/overlays/dev
+          for svc in $(echo '${{ needs.changes.outputs.services }}' | tr -d '[]"' | tr ',' ' '); do
+            img=$(echo "$svc" | tr '_' '-')
+            sed -i "s|name: ghcr.io/autonomous-agency/$img, newTag: [^ ]*|name: ghcr.io/autonomous-agency/$img, newTag: ${{ github.sha }}|" kustomization.yaml
+          done
+          sed -i "s|ghcr.io/autonomous-agency/|${{ env.REGISTRY }}/|g" kustomization.yaml
+      - name: Commit
+        run: |
+          git config user.name "ci-bot"; git config user.email "ci-bot@users.noreply.github.com"
+          git commit -am "deploy(dev): ${{ github.sha }} [skip ci]" || echo "nothing to deploy"
+          git push
+
+  promote-prod:
+    if: github.event_name == 'workflow_dispatch' && inputs.promote_to_prod
+    runs-on: ubuntu-latest
+    environment: production   # requires manual approval in repo settings
+    permissions: { contents: write }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy dev image tags to prod
+        run: |
+          grep -E "^  - \{ name: .*newTag" deploy/overlays/dev/kustomization.yaml > /tmp/images
+          python3 - <<'EOF'
+          import re, pathlib
+          dev = dict(re.findall(r"name: (\S+), newTag: (\S+) }", open("/tmp/images").read()))
+          p = pathlib.Path("deploy/overlays/prod/kustomization.yaml"); s = p.read_text()
+          for name, tag in dev.items():
+              short = name.rsplit("/", 1)[-1]
+              s = re.sub(rf"name: \S+/{short}, newTag: \S+ }}", f"name: {name}, newTag: {tag} }}", s)
+          p.write_text(s)
+          EOF
+          git config user.name "ci-bot"; git config user.email "ci-bot@users.noreply.github.com"
+          git commit -am "deploy(prod): promote dev tags [skip ci]" && git push

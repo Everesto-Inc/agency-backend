@@ -1,0 +1,20 @@
+# Privacy & data retention. Hot-reloaded.
+
+pii:
+  # Redact PII from every message before it leaves for an LLM provider
+  # (applied centrally in the model gateway, so all frameworks are covered).
+  redact_before_llm: true
+  # Redact PII in prompts/answers stored in the database (agent_runs, eval cases).
+  redact_in_storage: true
+  # Detectors to apply. Available: email, phone, credit_card, iban, ip_address, ssn
+  entities: [email, phone, credit_card, iban, ssn]
+
+retention:
+  # Prompt/answer TEXT in agent_runs is nulled after this many days (metrics,
+  # tokens and cost are kept for usage history and billing).
+  run_text_days: 30
+  # Per-call LLM ledger rows are deleted after this many days (usage_daily keeps
+  # the per-user/per-topic aggregates forever for billing).
+  llm_calls_days: 180
+  eval_results_days: 365
+  expired_refresh_tokens_days: 7

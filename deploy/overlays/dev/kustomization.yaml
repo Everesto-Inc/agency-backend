@@ -1,0 +1,41 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: autonomous-agency-dev
+
+resources:
+  - ../../base
+  - agency-env.yaml
+  - egress-data.yaml
+
+components:
+  - ../../components/env-wiring
+
+# Image tags are bumped by CI (GitOps): see .github/workflows/ci-cd.yaml.
+images:
+  - { name: ghcr.io/autonomous-agency/edge-gateway, newTag: latest }
+  - { name: ghcr.io/autonomous-agency/model-gateway, newTag: latest }
+  - { name: ghcr.io/autonomous-agency/topic-ev-research, newTag: latest }
+  - { name: ghcr.io/autonomous-agency/topic-product-finder, newTag: latest }
+  - { name: ghcr.io/autonomous-agency/topic-finance, newTag: latest }
+  - { name: ghcr.io/autonomous-agency/quality-worker, newTag: latest }
+
+patches:
+  - target: { kind: ConfigMap, name: agency-runtime }
+    patch: |-
+      - { op: replace, path: /data/ENVIRONMENT, value: staging }
+  - target: { kind: Ingress, name: agency }
+    patch: |-
+      - { op: replace, path: /spec/tls/0/hosts/0, value: api-dev.example.com }
+      - { op: replace, path: /spec/rules/0/host, value: api-dev.example.com }
+  # Dev: single replica everywhere, smaller autoscaling ceiling.
+  - target: { kind: HorizontalPodAutoscaler }
+    patch: |-
+      - { op: replace, path: /spec/minReplicas, value: 1 }
+      - { op: replace, path: /spec/maxReplicas, value: 3 }
+  - target: { kind: Deployment }
+    patch: |-
+      - { op: replace, path: /spec/replicas, value: 1 }
+  - target: { kind: PodDisruptionBudget }
+    patch: |-
+      - { op: replace, path: /spec/minAvailable, value: 0 }

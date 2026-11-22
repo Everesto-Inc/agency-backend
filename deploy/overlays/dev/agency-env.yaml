@@ -1,0 +1,9 @@
+# Wiring values propagated into CRD fields by components/env-wiring (build-time only).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agency-env
+  annotations: { config.kubernetes.io/local-config: "true" }
+data:
+  namespace: autonomous-agency-dev
+  infisicalEnv: dev

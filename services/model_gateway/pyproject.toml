@@ -1,0 +1,26 @@
+[project]
+name = "model-gateway"
+version = "0.1.0"
+description = "Central LLM router: picks the model tier for every call from every agent, tracks usage/cost/performance."
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "agency-platform",
+    "litellm>=1.80",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.3", "pytest-asyncio>=0.24", "fakeredis>=2.25"]
+
+[tool.uv.sources]
+agency-platform = { path = "../../libs/agency_platform", editable = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["model_gateway"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

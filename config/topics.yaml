@@ -1,0 +1,57 @@
+# Topic registry: one entry per topic microservice.
+#
+# Adding a topic = new service under services/ + an entry here + a plan
+# entitlement in plans.yaml. The edge gateway's /chat auto-router reads this,
+# and each topic service reads its own entry (timeouts, limits, task tiers).
+# Service names are identical in docker-compose and Kubernetes, so URLs don't
+# change per environment.
+
+routing:
+  keyword_min_hits: 1     # keyword score needed to route without the LLM
+  llm_fallback: true      # ambiguous prompts -> low-tier LLM classifier
+  default_topic: null     # null = ask the user to pick when nothing matches
+
+topics:
+  ev_research:
+    display_name: EV Helper
+    framework: langgraph
+    service_url: http://topic-ev-research:8000
+    description: >-
+      Electric vehicle research: specs (battery, range, charging), running cost
+      and EV-vs-EV / EV-vs-petrol/diesel comparisons per country, grounded in
+      crawled sources.
+    keywords: [ev, "electric vehicle", "electric car", battery, charging, kwh, range,
+               tesla, ioniq, rivian, lucid, polestar, "model 3", "model y", byd]
+    run_timeout_s: 240
+    max_prompt_chars: 2000
+    response_cache_ttl_s: 21600   # specs/prices are cached for days anyway
+    task_tiers: {}        # e.g. {synthesis: high} to override config/models.yaml
+
+  product_finder:
+    display_name: Cheapest Product Finder
+    framework: crewai
+    service_url: http://topic-product-finder:8000
+    description: >-
+      Finds the cheapest current offers for a product across many online
+      retailers, verifies each price against the source page, and ranks them by
+      total cost.
+    keywords: [cheapest, "best price", "lowest price", buy, deal, discount, price,
+               shop, "where to buy", retailer, offer, coupon]
+    run_timeout_s: 240
+    max_prompt_chars: 1000
+    response_cache_ttl_s: 1800    # prices move; keep short
+    task_tiers: {}
+
+  finance:
+    display_name: Finance Analyst
+    framework: autogen
+    service_url: http://topic-finance:8000
+    description: >-
+      Market data analysis: quotes, fundamentals, historical risk/return and
+      portfolio metrics, reviewed by a compliance agent. Educational, not advice.
+    keywords: [stock, stocks, share, ticker, etf, portfolio, dividend, "p/e", "pe ratio",
+               invest, investing, volatility, "market cap", nasdaq, "s&p", bond]
+    run_timeout_s: 180
+    max_prompt_chars: 2000
+    response_cache_ttl_s: 600     # quotes move; keep very short
+    task_tiers: {}

@@ -1,0 +1,26 @@
+# Repo-level tooling config only. This is a monorepo of independently-resolved
+# packages (each with its own pyproject + uv.lock), because the agent frameworks
+# (LangGraph / CrewAI / AutoGen) pin conflicting dependencies:
+#   libs/agency_platform          shared LLMOps platform
+#   services/<service>            one deployable per directory
+[tool.ruff]
+line-length = 140
+target-version = "py313"
+extend-exclude = ["venv", "**/.venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "S", "ASYNC", "RUF"]
+ignore = [
+    "S101",    # asserts are fine (tests + invariants)
+    "S608",    # SQL built from fixed interval whitelist only
+    "RUF001", "RUF002", "RUF003",  # unicode in strings/docs (currency symbols)
+    "B008",    # FastAPI Depends() defaults
+    "RUF012",
+    "UP046", "UP047",  # keep TypeVar generics (readability)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S", "E402", "E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["agency_platform", "model_gateway", "edge_gateway", "ev_research", "product_finder", "finance"]

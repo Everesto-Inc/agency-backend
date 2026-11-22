@@ -1,0 +1,6 @@
+{"prompt": "What is the capital of France?", "expected_tier": "low"}
+{"prompt": "Convert 15 km to miles.", "expected_tier": "low"}
+{"prompt": "Extract the email address from: contact jane@example.com today", "expected_tier": "low"}
+{"prompt": "Translate 'good morning' to German.", "expected_tier": "low"}
+{"prompt": "Explain step by step why diversification reduces portfolio risk, compare the trade-offs of index funds vs active funds, evaluate the risk for a 35-year-old and recommend a strategy:\n1. time horizon\n2. fees\n3. tax implications\n4. rebalancing plan", "expected_tier": "high", "pad_chars": 3000}
+{"prompt": "Analyze the pros and cons of these three architectures, explain the implications for latency and cost, then plan a migration step by step:\n- monolith\n- microservices\n- serverless\nFinally recommend one and justify it.", "expected_tier": "high", "pad_chars": 4000}

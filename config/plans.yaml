@@ -1,0 +1,54 @@
+# Subscription plans and entitlements.
+#
+# Enforced on every request by every topic service (agency_platform.agents.runner)
+# and by the model gateway (tier ceiling + daily quota hard stop mid-run).
+# Hot-reloaded: edit -> applies on the next request; an invalid edit is rejected
+# and the last good version keeps serving.
+
+# Plan given to new registrations.
+signup_plan: free
+# Plan in force when a paid subscription expires (plan_expires_at in the past)
+# or a user's plan name is unknown. 'none' = can log in, cannot run agents.
+lapsed_plan: none
+
+plans:
+  none:
+    display_name: No subscription
+    max_tier: low
+    topics: []                    # blocked: every topic returns SUBSCRIPTION_REQUIRED
+    daily_token_limit: 0
+    daily_cost_limit_usd: 0
+    requests_per_minute: 0
+
+  free:
+    display_name: Free
+    max_tier: mid                 # never routed to the most expensive tier
+    topics: [ev_research]
+    daily_token_limit: 50000
+    daily_cost_limit_usd: 0.05
+    requests_per_minute: 10
+    topic_daily_requests:
+      ev_research: 5              # each run = crawl + several LLM calls
+
+  pro:
+    display_name: Pro
+    max_tier: high
+    topics: ["*"]
+    daily_token_limit: 2000000
+    daily_cost_limit_usd: 5.00
+    requests_per_minute: 60
+    topic_daily_requests:
+      ev_research: 100
+      product_finder: 100
+      finance: 100
+    topic_daily_tokens: {}        # optional per-topic token budget, e.g. {finance: 500000}
+
+  internal:
+    # Service accounts (evaluation runs, online judging, smoke tests). Assign
+    # with `edge_gateway.cli create-service-user`; never sold to customers.
+    display_name: Internal
+    max_tier: high
+    topics: ["*"]
+    daily_token_limit: 20000000
+    daily_cost_limit_usd: 50.00
+    requests_per_minute: 120

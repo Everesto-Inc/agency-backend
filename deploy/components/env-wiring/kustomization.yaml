@@ -1,0 +1,16 @@
+# Propagates overlay values (agency-env ConfigMap) into CRD fields that the
+# namespace transformer doesn't know about.
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+replacements:
+  - source: { kind: ConfigMap, name: agency-env, fieldPath: data.namespace }
+    targets:
+      - select: { kind: InfisicalSecret }
+        fieldPaths:
+          - spec.authentication.universalAuth.credentialsRef.secretNamespace
+          - spec.managedKubeSecretReferences.0.secretNamespace
+  - source: { kind: ConfigMap, name: agency-env, fieldPath: data.infisicalEnv }
+    targets:
+      - select: { kind: InfisicalSecret }
+        fieldPaths: [spec.authentication.universalAuth.secretsScope.envSlug]

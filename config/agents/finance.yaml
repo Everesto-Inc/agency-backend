@@ -1,0 +1,21 @@
+# Topic 3 (finance analyst) parameters. Hot-reloaded.
+
+market_data:
+  provider: yfinance            # pluggable (finance/market.py MarketData protocol)
+  quote_cache_ttl_s: 300
+  history_cache_ttl_s: 3600
+  default_period: 1y            # 1mo 3mo 6mo 1y 2y 5y
+  max_symbols_per_request: 10
+
+analytics:
+  risk_free_rate: 0.04          # annual, for Sharpe
+  benchmark: SPY                # for beta
+  trading_days_per_year: 252
+
+team:
+  max_messages: 10              # hard cap on the AutoGen conversation
+  require_compliance_approval: true
+  disclaimer: >-
+    This is educational market analysis based on public data, not personalised
+    financial advice. Past performance does not guarantee future results.
+    Consider consulting a licensed financial adviser before investing.

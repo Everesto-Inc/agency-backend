@@ -1,0 +1,155 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: topic-finance
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: topic-finance
+  labels: { app.kubernetes.io/name: topic-finance, app.kubernetes.io/part-of: autonomous-agency }
+  annotations:
+    secrets.infisical.com/auto-reload: "true"   # rolling restart when Infisical secrets change
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  strategy:
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels: { app.kubernetes.io/name: topic-finance }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: topic-finance, app.kubernetes.io/part-of: autonomous-agency }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: /metrics
+    spec:
+      serviceAccountName: topic-finance
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 45
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector: { matchLabels: { app.kubernetes.io/name: topic-finance } }
+      containers:
+        - name: app
+          image: ghcr.io/autonomous-agency/topic-finance:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{ name: http, containerPort: 8000 }]
+          env:
+            - { name: SERVICE_NAME, value: topic-finance }
+          envFrom:
+            - configMapRef: { name: agency-runtime }
+            - secretRef: { name: agency-shared-secrets }
+            - secretRef: { name: topic-finance-secrets }
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { memory: 1Gi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          startupProbe:
+            httpGet: { path: /health/live, port: http }
+            periodSeconds: 3
+            failureThreshold: 40
+          livenessProbe:
+            httpGet: { path: /health/live, port: http }
+            periodSeconds: 15
+          readinessProbe:
+            httpGet: { path: /health/ready, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+          lifecycle:
+            preStop: { exec: { command: ["sleep", "5"] } }   # let endpoints drain before SIGTERM
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+              readOnly: true
+            - name: prompts
+              mountPath: /app/prompts
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          projected:
+            sources:
+              - configMap:
+                  name: agency-config
+                  items:
+                    - { key: models.yaml, path: models.yaml }
+                    - { key: plans.yaml, path: plans.yaml }
+                    - { key: topics.yaml, path: topics.yaml }
+                    - { key: privacy.yaml, path: privacy.yaml }
+                    - { key: evals.yaml, path: evals.yaml }
+                    - { key: agents.ev_research.yaml, path: agents/ev_research.yaml }
+                    - { key: agents.product_finder.yaml, path: agents/product_finder.yaml }
+                    - { key: agents.finance.yaml, path: agents/finance.yaml }
+        - name: prompts
+          configMap: { name: agency-prompts }
+        - name: tmp
+          emptyDir: { sizeLimit: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: topic-finance
+  labels: { app.kubernetes.io/name: topic-finance }
+spec:
+  selector: { app.kubernetes.io/name: topic-finance }
+  ports: [{ name: http, port: 8000, targetPort: http }]
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: topic-finance
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: topic-finance }
+  minReplicas: 1
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+  behavior:
+    scaleDown: { stabilizationWindowSeconds: 300 }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: topic-finance
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: topic-finance }
+---
+# Least privilege: this service's own Infisical folder only.
+apiVersion: secrets.infisical.com/v1alpha1
+kind: InfisicalSecret
+metadata:
+  name: topic-finance-secrets
+spec:
+  hostAPI: https://infisical.everesto.live/api
+  resyncInterval: 60
+  authentication:
+    universalAuth:
+      secretsScope:
+        projectSlug: autonomous-agency       # patched per overlay if different
+        envSlug: dev                          # patched per overlay
+        secretsPath: "/topics/finance"
+      credentialsRef:
+        secretName: infisical-universal-auth  # bootstrap secret, created once per cluster
+        secretNamespace: autonomous-agency
+  managedKubeSecretReferences:
+    - secretName: topic-finance-secrets
+      secretNamespace: autonomous-agency
+      creationPolicy: Owner

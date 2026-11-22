@@ -1,0 +1,218 @@
+# Local stack. Secrets come from .env (gitignored), which docker compose reads
+# automatically. Create it once, then add your Gemini + Tavily keys:
+#   python3 scripts/gen_secrets.py --env-file .env
+#   docker compose up -d --build
+# Day-to-day commands: README "Local development".
+#
+# Least privilege even locally: each container only receives the variables it
+# needs -- provider API keys go to model-gateway ONLY.
+#
+# Ports: edge 8000 | ev_research 8001 | product_finder 8002 | finance 8003 | model-gateway 8010
+#        prometheus 9090 | grafana 3001   (profile: monitoring)
+# Profiles: `quality` (eval/judge/drift jobs, run on demand), `monitoring`.
+
+# Fixed project name: container/volume names (and so the local MySQL data) don't depend
+# on the folder this repo is checked out in.
+name: autonomous-agency
+
+x-common-env: &common-env
+  ENVIRONMENT: dev
+  LOG_JSON: "false"
+  DATABASE_URL: mysql://agency:localdev@mysql:3306/agency
+  REDIS_URL: redis://redis:6379/0
+  MODEL_GATEWAY_URL: http://model-gateway:8000
+  JWT_SECRET_KEY: "${JWT_SECRET_KEY:?create .env first - python3 scripts/gen_secrets.py --env-file .env}"
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+  LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
+  LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
+  LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-autonomous-agency}
+  TRUSTED_PROXY_COUNT: "0"
+
+x-live-config: &live-config
+  # Parameters and prompts are hot-reloaded: edit on the host, next request uses it.
+  - ./config:/app/config:ro
+  - ./prompts:/app/prompts:ro
+
+x-healthcheck: &healthcheck
+  test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health/ready').status==200 else 1)"]
+  interval: 10s
+  timeout: 5s
+  retries: 6
+  start_period: 20s
+
+x-depends: &depends
+  mysql: { condition: service_healthy }
+  redis: { condition: service_healthy }
+  migrate: { condition: service_completed_successfully }
+
+services:
+  mysql:
+    # Same engine family as prod (OCI HeatWave MySQL). Flags mirror HeatWave's
+    # defaults so schema problems show up locally: primary keys required, UTC, utf8mb4.
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: agency
+      MYSQL_USER: agency
+      MYSQL_PASSWORD: localdev            # local-only, loopback-bound
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+    command:
+      - --sql-require-primary-key=ON
+      - --default-time-zone=+00:00
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    ports: ["127.0.0.1:33069:3306"]        # loopback only
+    volumes:
+      - mysqldata:/var/lib/mysql
+      - ./scripts/mysql-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # TCP ping: fails during the image's init phase (socket-only), so "healthy" = really ready
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uagency", "-plocaldev", "--silent"]
+      interval: 5s
+      retries: 20
+      start_period: 20s
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  migrate:
+    build: { context: ., args: { SERVICE: edge_gateway, MODULE: "edge_gateway.main:app" } }
+    image: agency/edge-gateway:local
+    command: ["python", "-m", "agency_platform.db.migrate", "/app/migrations"]
+    environment:
+      <<: *common-env
+    depends_on:
+      mysql: { condition: service_healthy }
+
+  model-gateway:
+    build: { context: ., args: { SERVICE: model_gateway, MODULE: "model_gateway.main:app" } }
+    image: agency/model-gateway:local
+    environment:
+      <<: *common-env
+      SERVICE_NAME: model-gateway
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      MODEL_GATEWAY_CLIENTS: >-
+        edge=${EDGE_GATEWAY_SECRET:?missing},ev_research=${EV_RESEARCH_GATEWAY_SECRET:?missing},product_finder=${PRODUCT_FINDER_GATEWAY_SECRET:?missing},finance=${FINANCE_GATEWAY_SECRET:?missing},quality=${QUALITY_GATEWAY_SECRET:?missing}
+    ports: ["127.0.0.1:8010:8000"]
+    volumes: *live-config
+    depends_on: *depends
+    healthcheck: *healthcheck
+
+  edge-gateway:
+    image: agency/edge-gateway:local
+    environment:
+      <<: *common-env
+      SERVICE_NAME: edge-gateway
+      MODEL_GATEWAY_CLIENT_SECRET: ${EDGE_GATEWAY_SECRET}
+    ports: ["127.0.0.1:8000:8000"]
+    volumes: *live-config
+    depends_on: *depends
+    healthcheck: *healthcheck
+
+  topic-ev-research:
+    build:
+      context: .
+      args: { SERVICE: topic_ev_research, MODULE: "ev_research.main:app", INSTALL_PLAYWRIGHT: "true" }
+    image: agency/topic-ev-research:local
+    environment:
+      <<: *common-env
+      SERVICE_NAME: topic-ev-research
+      MODEL_GATEWAY_CLIENT_SECRET: ${EV_RESEARCH_GATEWAY_SECRET}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+    ports: ["127.0.0.1:8001:8000"]
+    volumes: *live-config
+    shm_size: 1gb   # Chromium
+    depends_on: *depends
+    healthcheck: *healthcheck
+
+  topic-product-finder:
+    build: { context: ., args: { SERVICE: topic_product_finder, MODULE: "product_finder.main:app" } }
+    image: agency/topic-product-finder:local
+    environment:
+      <<: *common-env
+      SERVICE_NAME: topic-product-finder
+      MODEL_GATEWAY_CLIENT_SECRET: ${PRODUCT_FINDER_GATEWAY_SECRET}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+    ports: ["127.0.0.1:8002:8000"]
+    volumes: *live-config
+    depends_on: *depends
+    healthcheck: *healthcheck
+
+  topic-finance:
+    build: { context: ., args: { SERVICE: topic_finance, MODULE: "finance.main:app" } }
+    image: agency/topic-finance:local
+    environment:
+      <<: *common-env
+      SERVICE_NAME: topic-finance
+      MODEL_GATEWAY_CLIENT_SECRET: ${FINANCE_GATEWAY_SECRET}
+    ports: ["127.0.0.1:8003:8000"]
+    volumes: *live-config
+    depends_on: *depends
+    healthcheck: *healthcheck
+
+  quality-worker:
+    profiles: [quality]
+    build: { context: ., args: { SERVICE: quality_worker, MODULE: "quality.__main__:main" } }
+    image: agency/quality-worker:local
+    entrypoint: ["python", "-m", "quality"]
+    command: ["--help"]
+    environment:
+      <<: *common-env
+      SERVICE_NAME: quality-worker
+      EDGE_URL: http://edge-gateway:8000
+      EVALS_DIR: /app/evals
+      MODEL_GATEWAY_CLIENT_SECRET: ${QUALITY_GATEWAY_SECRET}
+      EVAL_USER_EMAIL: ${EVAL_USER_EMAIL:-evals@agency.internal}
+      EVAL_USER_PASSWORD: ${EVAL_USER_PASSWORD:-}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+      GIT_SHA: ${GIT_SHA:-local}
+    volumes:
+      - ./config:/app/config:ro
+      - ./prompts:/app/prompts:ro
+      - ./evals:/app/evals          # datasets in, reports/baselines out
+    depends_on:
+      edge-gateway: { condition: service_healthy }
+
+  eval-user:
+    # One-shot: the service account the quality jobs log in with (plan 'internal').
+    #   docker compose --profile quality run --rm eval-user
+    profiles: [quality]
+    build: { context: ., args: { SERVICE: edge_gateway, MODULE: "edge_gateway.main:app" } }
+    image: agency/edge-gateway:local
+    command: ["python", "-m", "edge_gateway.cli", "create-service-user", "${EVAL_USER_EMAIL:-evals@agency.internal}"]
+    environment:
+      <<: *common-env
+      SERVICE_USER_PASSWORD: ${EVAL_USER_PASSWORD:?missing in .env (python3 scripts/gen_secrets.py --env-file .env)}
+    depends_on:
+      mysql: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+
+  prometheus:
+    profiles: [monitoring]
+    image: prom/prometheus:v3.5.0
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=15d"]
+    volumes:
+      - ./deploy/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+    ports: ["127.0.0.1:9090:9090"]
+
+  grafana:
+    profiles: [monitoring]
+    image: grafana/grafana:12.1.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ./deploy/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["127.0.0.1:3001:3000"]
+    depends_on: [prometheus]
+
+volumes:
+  mysqldata:
+  redisdata:

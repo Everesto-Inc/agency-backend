@@ -1,0 +1,73 @@
+# Zero-trust networking inside the namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+# Public-facing pods: reachable from the ingress controller and Prometheus.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-public
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: app.kubernetes.io/name, operator: In, values: [edge-gateway, topic-ev-research, topic-product-finder, topic-finance] }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: ingress-nginx } }
+        - podSelector: { matchLabels: { app.kubernetes.io/name: edge-gateway } }   # /chat proxy
+        - podSelector: { matchLabels: { app.kubernetes.io/name: quality-worker } } # eval runs
+      ports: [{ port: 8000 }]
+---
+# Model gateway: only agency services may call it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: model-gateway-ingress
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: model-gateway } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - { key: app.kubernetes.io/name, operator: In, values: [edge-gateway, topic-ev-research, topic-product-finder, topic-finance, quality-worker] }
+      ports: [{ port: 8000 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-metrics-scrape
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/part-of: autonomous-agency } }
+  policyTypes: [Ingress]
+  ingress:
+    - from: [{ namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: monitoring } } }]
+      ports: [{ port: 8000 }]
+---
+# Egress: DNS + in-namespace calls + the public internet (LLM providers, crawling).
+# Private ranges and the cloud metadata endpoint are blocked: the network-layer
+# half of SSRF protection. The database (OCI HeatWave MySQL, private subnet only)
+# and Redis are opened per overlay to their exact private IPs: overlays/*/egress-data.yaml.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: egress
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/part-of: autonomous-agency } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ namespaceSelector: {}, podSelector: { matchLabels: { k8s-app: kube-dns } } }]
+      ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }]
+    - to: [{ podSelector: { matchLabels: { app.kubernetes.io/part-of: autonomous-agency } } }]
+      ports: [{ port: 8000 }]
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 100.64.0.0/10]
+      ports: [{ port: 443 }, { port: 80 }]

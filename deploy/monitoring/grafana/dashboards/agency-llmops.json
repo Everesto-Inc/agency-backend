@@ -1,0 +1,551 @@
+{
+ "uid": "agency-llmops",
+ "title": "Agency LLMOps",
+ "schemaVersion": 39,
+ "time": {
+  "from": "now-24h",
+  "to": "now"
+ },
+ "refresh": "1m",
+ "tags": [
+  "llmops"
+ ],
+ "panels": [
+  {
+   "type": "stat",
+   "title": "Spend last 24h",
+   "datasource": {
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "expr": "sum(increase(agency_llm_cost_usd_total[24h]))",
+     "refId": "A"
+    }
+   ],
+   "gridPos": {
+    "w": 6,
+    "h": 4,
+    "x": 0,
+    "y": 0
+   },
+   "id": 1
+  },
+  {
+   "type": "stat",
+   "title": "Tokens last 24h",
+   "datasource": {
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "expr": "sum(increase(agency_llm_tokens_total[24h]))",
+     "refId": "A"
+    }
+   ],
+   "gridPos": {
+    "w": 6,
+    "h": 4,
+    "x": 6,
+    "y": 0
+   },
+   "id": 2
+  },
+  {
+   "type": "stat",
+   "title": "Agent runs last 24h",
+   "datasource": {
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "expr": "sum(increase(agency_agent_runs_total[24h]))",
+     "refId": "A"
+    }
+   ],
+   "gridPos": {
+    "w": 6,
+    "h": 4,
+    "x": 12,
+    "y": 0
+   },
+   "id": 3
+  },
+  {
+   "type": "stat",
+   "title": "Response cache hit ratio (1h)",
+   "datasource": {
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "expr": "sum(rate(agency_cache_events_total{layer=\"response\",result=\"hit\"}[1h])) / clamp_min(sum(rate(agency_cache_events_total{layer=\"response\"}[1h])),1e-9)",
+     "refId": "A"
+    }
+   ],
+   "gridPos": {
+    "w": 6,
+    "h": 4,
+    "x": 18,
+    "y": 0
+   },
+   "id": 4
+  },
+  {
+   "type": "timeseries",
+   "title": "Spend per topic ($/h)",
+   "datasource": {
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "currencyUSD"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "expr": "sum by (topic) (increase(agency_llm_cost_usd_total[1h]))",
+     "legendFormat": "{{topic}}",
+     "refId": "A"
+    }
+   ],
+   "gridPos": {
+    "w": 12,
+    "h": 8,
+    "x": 0,
+    "y": 4
+   },
+   "id": 5
+  },
+  {
+   "type": "timeseries",
+   "title": "Tokens per topic (/h)",
+   "datasource": {
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "expr": "sum by (topic) (increase(agency_llm_tokens_total[1h]))",
+     "legendFormat": "{{topic}}",
+     "refId": "A"
+    }
+   ],
+   "gridPos": {
+    "w": 12,
+    "h": 8,
+    "x": 12,
+    "y": 4
+   },
+   "id": 6
+  },
+  {
+   "type": "timeseries",
+   "title": "LLM calls by tier",
+   "datasource": {
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "expr": "sum by (tier) (rate(agency_llm_calls_total[5m]))",
+     "legendFormat": "{{tier}}",
+     "refId": "A"
+    }
+   ],
+   "gridPos": {
+    "w": 12,
+    "h": 8,
+    "x": 0,
+    "y": 12
+   },
+   "id": 7
+  },
+  {
+   "type": "timeseries",
+   "title": "Routing decisions by source",
+   "datasource": {
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "expr": "sum by (source, tier) (rate(agency_model_routing_total[5m]))",
+     "legendFormat": "{{source}} -> {{tier}}",
+     "refId": "A"
+    }
+   ],
+   "gridPos": {
+    "w": 12,
+    "h": 8,
+    "x": 12,
+    "y": 12
+   },
+   "id": 8
+  },
+  {
+   "type": "timeseries",
+   "title": "LLM p95 latency by model",
+   "datasource": {
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "expr": "histogram_quantile(0.95, sum by (le, model) (rate(agency_llm_call_seconds_bucket[5m])))",
+     "legendFormat": "{{model}}",
+     "refId": "A"
+    }
+   ],
+   "gridPos": {
+    "w": 12,
+    "h": 8,
+    "x": 0,
+    "y": 20
+   },
+   "id": 9
+  },
+  {
+   "type": "timeseries",
+   "title": "LLM error rate by model",
+   "datasource": {
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "expr": "sum by (model) (rate(agency_llm_calls_total{status=\"error\"}[5m])) / sum by (model) (rate(agency_llm_calls_total[5m]))",
+     "legendFormat": "{{model}}",
+     "refId": "A"
+    }
+   ],
+   "gridPos": {
+    "w": 12,
+    "h": 8,
+    "x": 12,
+    "y": 20
+   },
+   "id": 10
+  },
+  {
+   "type": "timeseries",
+   "title": "Agent runs by topic/status",
+   "datasource": {
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "expr": "sum by (topic, status) (rate(agency_agent_runs_total[5m]))",
+     "legendFormat": "{{topic}} {{status}}",
+     "refId": "A"
+    }
+   ],
+   "gridPos": {
+    "w": 12,
+    "h": 8,
+    "x": 0,
+    "y": 28
+   },
+   "id": 11
+  },
+  {
+   "type": "timeseries",
+   "title": "Agent run p95 latency",
+   "datasource": {
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "expr": "histogram_quantile(0.95, sum by (le, topic) (rate(agency_agent_run_seconds_bucket[5m])))",
+     "legendFormat": "{{topic}}",
+     "refId": "A"
+    }
+   ],
+   "gridPos": {
+    "w": 12,
+    "h": 8,
+    "x": 12,
+    "y": 28
+   },
+   "id": 12
+  },
+  {
+   "type": "timeseries",
+   "title": "Online judge score (1-5)",
+   "datasource": {
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "expr": "agency_quality_judge_score",
+     "legendFormat": "{{topic}}",
+     "refId": "A"
+    }
+   ],
+   "gridPos": {
+    "w": 12,
+    "h": 8,
+    "x": 0,
+    "y": 36
+   },
+   "id": 13
+  },
+  {
+   "type": "timeseries",
+   "title": "Offline eval pass rate",
+   "datasource": {
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "percentunit"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "expr": "agency_eval_pass_rate",
+     "legendFormat": "{{topic}}",
+     "refId": "A"
+    }
+   ],
+   "gridPos": {
+    "w": 12,
+    "h": 8,
+    "x": 12,
+    "y": 36
+   },
+   "id": 14
+  },
+  {
+   "type": "timeseries",
+   "title": "Drift flags",
+   "datasource": {
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "expr": "agency_drift_detected",
+     "legendFormat": "{{topic}} {{metric}}",
+     "refId": "A"
+    }
+   ],
+   "gridPos": {
+    "w": 12,
+    "h": 8,
+    "x": 0,
+    "y": 44
+   },
+   "id": 15
+  },
+  {
+   "type": "timeseries",
+   "title": "User feedback",
+   "datasource": {
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "expr": "sum by (topic, score) (increase(agency_feedback_total[1h]))",
+     "legendFormat": "{{topic}} {{score}}",
+     "refId": "A"
+    }
+   ],
+   "gridPos": {
+    "w": 12,
+    "h": 8,
+    "x": 12,
+    "y": 44
+   },
+   "id": 16
+  },
+  {
+   "type": "timeseries",
+   "title": "Quota / plan rejections",
+   "datasource": {
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "expr": "sum by (topic, code) (rate(agency_quota_rejections_total[5m]))",
+     "legendFormat": "{{topic}} {{code}}",
+     "refId": "A"
+    }
+   ],
+   "gridPos": {
+    "w": 12,
+    "h": 8,
+    "x": 0,
+    "y": 52
+   },
+   "id": 17
+  },
+  {
+   "type": "timeseries",
+   "title": "Canary calls",
+   "datasource": {
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "expr": "sum by (model, status) (rate(agency_canary_calls_total[5m]))",
+     "legendFormat": "{{model}} {{status}}",
+     "refId": "A"
+    }
+   ],
+   "gridPos": {
+    "w": 12,
+    "h": 8,
+    "x": 12,
+    "y": 52
+   },
+   "id": 18
+  },
+  {
+   "type": "timeseries",
+   "title": "LLM cache (deterministic calls)",
+   "datasource": {
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "expr": "sum by (model) (rate(agency_llm_calls_total{status=\"cached\"}[5m]))",
+     "legendFormat": "{{model}} cached",
+     "refId": "A"
+    }
+   ],
+   "gridPos": {
+    "w": 12,
+    "h": 8,
+    "x": 0,
+    "y": 60
+   },
+   "id": 19
+  },
+  {
+   "type": "timeseries",
+   "title": "PII redactions before LLM",
+   "datasource": {
+    "uid": "prometheus"
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps"
+    },
+    "overrides": []
+   },
+   "targets": [
+    {
+     "expr": "sum by (entity) (rate(agency_pii_redactions_total[5m]))",
+     "legendFormat": "{{entity}}",
+     "refId": "A"
+    }
+   ],
+   "gridPos": {
+    "w": 12,
+    "h": 8,
+    "x": 12,
+    "y": 60
+   },
+   "id": 20
+  }
+ ]
+}

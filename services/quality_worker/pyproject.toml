@@ -1,0 +1,27 @@
+[project]
+name = "quality-worker"
+version = "0.1.0"
+description = "LLMOps quality jobs: offline evals + LLM-as-judge, regression gate, online judging, drift, feedback->dataset, retention, live smoke test."
+requires-python = ">=3.13,<3.14"
+dependencies = ["agency-platform"]
+
+[project.optional-dependencies]
+test = ["pytest>=8.3", "pytest-asyncio>=0.24", "fakeredis>=2.25"]
+
+[project.scripts]
+quality = "quality.__main__:main"
+
+[tool.uv.sources]
+agency-platform = { path = "../../libs/agency_platform", editable = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["quality"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]

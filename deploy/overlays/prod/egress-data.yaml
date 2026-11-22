@@ -1,0 +1,15 @@
+# Egress to the data stores on their private IPs (the base policy blocks private ranges).
+# REPLACE the placeholder CIDRs with the HeatWave DB system endpoint and the Redis
+# (OCI Cache) endpoint of this environment, as /32s.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: egress-data
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/part-of: autonomous-agency } }
+  policyTypes: [Egress]
+  egress:
+    - to: [{ ipBlock: { cidr: 10.0.30.10/32 } }]   # HeatWave MySQL (prod)  REPLACE
+      ports: [{ port: 3306 }]
+    - to: [{ ipBlock: { cidr: 10.0.30.20/32 } }]   # Redis / OCI Cache (prod)  REPLACE
+      ports: [{ port: 6379 }, { port: 6380 }]

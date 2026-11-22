@@ -1,0 +1,25 @@
+# Topic 1 (EV helper) parameters. Hot-reloaded.
+
+country_data:
+  # Days a cached country fuel/electricity price stays valid before re-crawling.
+  # Lower = fresher prices, more crawls + LLM tokens. Higher = cheaper, staler.
+  staleness_days: 30
+
+ev_specs:
+  # Longer than prices on purpose: a model year's battery/range rarely changes.
+  staleness_days: 90
+
+crawl:
+  candidate_sources: 3          # search results tried per fact, best first
+  max_concurrent_crawls: 2      # headless browsers per pod (memory bound)
+  page_timeout_s: 30
+  chunk_token_threshold: 4000
+  # Extracted numbers must literally appear on the source page; otherwise the
+  # field is nulled. Turn off only for debugging.
+  verify_numbers_on_page: true
+
+assumptions:
+  # EV-vs-fuel needs an ICE consumption figure. Until a comparison vehicle's
+  # real figure is crawled, this is a DISCLOSED assumption (synthesize says so).
+  avg_ice_fuel_consumption_l_per_100km: 7.0
+  default_annual_mileage_km: 15000

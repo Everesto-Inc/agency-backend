@@ -1,0 +1,30 @@
+[project]
+name = "topic-finance"
+version = "0.1.0"
+description = "Topic 3: finance analyst team (AutoGen) with deterministic market-data tools and compliance review."
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "agency-platform",
+    "autogen-agentchat>=0.7",
+    "autogen-ext[openai]>=0.7",
+    "yfinance>=0.2.50",
+    "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.3", "pytest-asyncio>=0.24", "fakeredis>=2.25"]
+
+[tool.uv.sources]
+agency-platform = { path = "../../libs/agency_platform", editable = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["finance"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]

@@ -1,0 +1,116 @@
+# Model catalog and tier routing policy -- read by the model gateway only.
+#
+# Agents never name models. They request a TASK ("task-intent_parsing"), a TIER
+# ("tier-high") or "auto" (classifier decides). This file maps those to concrete
+# models. Swapping providers/models is a config change, hot-reloaded.
+#
+# Ids verified against the key's model list + pinged on 2026-11-22. Prices are
+# pinned here (from litellm's price map) so cost tracking never silently drops
+# to $0 for a model litellm doesn't know. Re-check after changes with:
+#   docker compose --env-file .env.dev exec model-gateway python -m model_gateway.models_check
+# Ids are pinned versions on purpose (not *-latest aliases): a silent model
+# change would break eval baselines and cost comparisons.
+#
+# Cost: if input/output prices are set here they are used; otherwise litellm's
+# maintained price map is used. Models whose provider key is missing are skipped.
+
+models:
+  gemini-flash-lite:
+    litellm_model: gemini/gemini-3.1-flash-lite
+    provider: gemini
+    tier: low
+    input_cost_per_mtok: 0.25
+    output_cost_per_mtok: 1.50
+    capabilities: [json, tools]
+    timeout_s: 30
+  gemini-flash:
+    litellm_model: gemini/gemini-3.8-flash
+    provider: gemini
+    tier: mid
+    input_cost_per_mtok: 0.75
+    output_cost_per_mtok: 3.75
+    capabilities: [json, tools]
+    timeout_s: 60
+  gemini-pro:
+    litellm_model: gemini/gemini-3.1-pro-preview
+    provider: gemini
+    tier: high
+    input_cost_per_mtok: 2.00
+    output_cost_per_mtok: 12.00
+    capabilities: [json, tools]
+    timeout_s: 120
+  gemini-argon:                   # canary candidate only (not in any tier)
+    litellm_model: gemini/gemini-4-argon
+    provider: gemini
+    tier: high
+    input_cost_per_mtok: 2.00
+    output_cost_per_mtok: 10.00
+    capabilities: [json, tools]
+    timeout_s: 120
+
+# Ordered candidates per tier: first healthy one wins, the rest are fallbacks.
+# Gemini only (single provider): fallbacks are the neighbouring Gemini model, so
+# a model outage degrades quality/cost slightly instead of failing the request.
+tiers:
+  low:  [gemini-flash-lite, gemini-flash]
+  mid:  [gemini-flash, gemini-flash-lite]
+  high: [gemini-pro, gemini-flash]
+
+routing:
+  default_tier: mid               # when nothing else decides
+  escalate_on_error: true         # all models of a tier failed -> try next tier up
+  max_escalations: 1              #   (never above the user's plan ceiling)
+
+  # Task -> tier. Topics override per task in config/topics.yaml (task_tiers).
+  tasks:
+    topic_classification: low
+    intent_parsing: low
+    extraction: low
+    summarization: low
+    query_planning: low
+    compliance_review: low
+    synthesis: mid
+    tool_use: mid
+    data_analysis: mid
+    product_matching: mid
+    reasoning: high
+    planning: high
+    investment_analysis: high
+    eval_judge: high              # LLM-as-judge for offline + online evals
+
+  # "auto": score the request; clear cases decided by heuristics (free), the
+  # ambiguous middle band by a low-tier LLM judge (cached).
+  classifier:
+    low_max_score: 0.30           # score <= this -> low
+    high_min_score: 0.60          # score >= this -> high; in between -> judge/mid (tuned on evals/datasets/model_tiers.jsonl)
+    weights:
+      length: 0.25                # long inputs need more capable models
+      reasoning_terms: 0.30
+      multi_step: 0.20
+      code: 0.10
+      tools: 0.10
+      conversation_depth: 0.05
+    length_saturation_chars: 6000
+    reasoning_terms: [why, explain, analyse, analyze, compare, trade-off, tradeoff,
+                      evaluate, strategy, plan, prove, derive, recommend, optimi,
+                      pros and cons, step by step, implications, risk]
+    llm_judge:
+      enabled: true
+      cache_ttl_s: 3600
+      max_input_chars: 3000
+
+# Canary releases: route a sticky % of a tier's runs to a new model first, then
+# compare it with the incumbent (GET /api/v1/admin/metrics/models?window=24h,
+# canary=true rows; online judge scores) before promoting it in `tiers`.
+# Flip `enabled: true` to send 10% of high-tier runs to gemini-4-argon first.
+canaries:
+  - tier: high
+    model: gemini-argon
+    percent: 10
+    enabled: false
+
+# Exact-match cache for deterministic calls (temperature 0, no tools): repeated
+# extractions/classifications cost nothing. Keyed on messages + params + model.
+cache:
+  enabled: true
+  ttl_s: 86400

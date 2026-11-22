@@ -1,0 +1,54 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# NOTE: config/ and prompts/ at the repo root are the single source of truth,
+# so building needs `--load-restrictor LoadRestrictionsNone` (set once in
+# Argo CD: argocd-cm `kustomize.buildOptions`; `kubectl kustomize --load-restrictor LoadRestrictionsNone deploy/overlays/dev` locally).
+
+labels:
+  - pairs: { app.kubernetes.io/part-of: autonomous-agency }
+    includeSelectors: false
+
+resources:
+  - shared.yaml
+  - edge-gateway.yaml
+  - model-gateway.yaml
+  - topic-ev-research.yaml
+  - topic-product-finder.yaml
+  - topic-finance.yaml
+  - quality-worker.yaml
+  - prometheus-rules.yaml
+  - migrate-job.yaml
+  - networkpolicy.yaml
+  - ingress.yaml
+
+# Parameters/prompts: stable names (no hash) so the kubelet updates mounted
+# files in place and the services hot-reload them (~1 min) without a rollout.
+generatorOptions:
+  disableNameSuffixHash: true
+
+configMapGenerator:
+  - name: agency-config
+    files:
+      - models.yaml=../../config/models.yaml
+      - plans.yaml=../../config/plans.yaml
+      - topics.yaml=../../config/topics.yaml
+      - privacy.yaml=../../config/privacy.yaml
+      - evals.yaml=../../config/evals.yaml
+      - agents.ev_research.yaml=../../config/agents/ev_research.yaml
+      - agents.product_finder.yaml=../../config/agents/product_finder.yaml
+      - agents.finance.yaml=../../config/agents/finance.yaml
+  - name: agency-prompts
+    files:
+      - ../../prompts/edge.yaml
+      - ../../prompts/model_gateway.yaml
+      - ../../prompts/ev_research.yaml
+      - ../../prompts/product_finder.yaml
+      - ../../prompts/finance.yaml
+      - ../../prompts/quality.yaml
+  # Grafana sidecar picks up ConfigMaps labelled grafana_dashboard=1
+  - name: agency-grafana-dashboard
+    files:
+      - ../monitoring/grafana/dashboards/agency-llmops.json
+    options:
+      labels: { grafana_dashboard: "1" }

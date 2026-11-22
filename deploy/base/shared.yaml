@@ -1,0 +1,41 @@
+# Non-secret runtime settings shared by all services (patched per overlay).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agency-runtime
+data:
+  ENVIRONMENT: staging
+  LOG_LEVEL: INFO
+  LOG_JSON: "true"
+  CONFIG_DIR: /app/config
+  PROMPTS_DIR: /app/prompts
+  MODEL_GATEWAY_URL: http://model-gateway:8000
+  TRUSTED_PROXY_COUNT: "1"          # the ingress controller
+  EXPOSE_DOCS: "false"
+  CORS_ALLOWED_ORIGINS: https://app.example.com
+  LANGSMITH_TRACING: "true"
+  LANGSMITH_PROJECT: autonomous-agency
+  DB_POOL_MAX_SIZE: "10"
+---
+# Secrets every service needs: DATABASE_URL, REDIS_URL, JWT_PUBLIC_KEY, LANGSMITH_API_KEY.
+# DATABASE_URL (HeatWave): mysql://agency:<pw>@<db-private-ip>:3306/agency?ssl-mode=REQUIRED
+apiVersion: secrets.infisical.com/v1alpha1
+kind: InfisicalSecret
+metadata:
+  name: agency-shared-secrets
+spec:
+  hostAPI: https://infisical.everesto.live/api
+  resyncInterval: 60
+  authentication:
+    universalAuth:
+      secretsScope:
+        projectSlug: autonomous-agency
+        envSlug: dev
+        secretsPath: "/shared"
+      credentialsRef:
+        secretName: infisical-universal-auth
+        secretNamespace: autonomous-agency
+  managedKubeSecretReferences:
+    - secretName: agency-shared-secrets
+      secretNamespace: autonomous-agency
+      creationPolicy: Owner

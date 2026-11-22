@@ -1,0 +1,35 @@
+# Quality evaluation, regression gates and drift monitoring. Hot-reloaded.
+
+offline:
+  # Datasets: evals/datasets/<topic>.jsonl (see evals/README.md for the schema).
+  concurrency: 3
+  request_timeout_s: 300
+  judge_task: eval_judge          # model-gateway task -> tier (config/models.yaml)
+
+gate:
+  # A PR that changes prompts/models/topic code must not regress quality.
+  # Compared against evals/baselines/<topic>.json.
+  min_pass_rate: 0.80             # absolute floor
+  max_pass_rate_drop: 0.05        # vs baseline
+  max_judge_score_drop: 0.30      # mean judge score (1-5 scale) vs baseline
+  max_cost_increase_pct: 25       # mean $ per case vs baseline
+  max_p95_latency_increase_pct: 50
+
+online:
+  # Fraction of real production runs sampled for asynchronous LLM-as-judge
+  # scoring (quality monitoring on live traffic).
+  sample_rate: 0.05
+  max_judged_per_job: 200
+
+drift:
+  # Compares the last `window_hours` against the preceding `baseline_days`.
+  window_hours: 24
+  baseline_days: 7
+  min_runs: 20                    # below this, no verdict (too little data)
+  thresholds:
+    judge_score_drop: 0.4         # mean online judge score (1-5)
+    negative_feedback_rate_increase: 0.10
+    error_rate_increase: 0.05
+    cost_per_run_increase_pct: 30
+    tier_distribution_jsd: 0.10   # Jensen-Shannon divergence of tier mix
+  alert_webhook_env: ALERT_WEBHOOK_URL   # Slack/Teams-compatible JSON webhook (optional)

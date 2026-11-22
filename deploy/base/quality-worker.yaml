@@ -1,0 +1,212 @@
+# Scheduled LLMOps quality jobs (see services/quality_worker).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: quality-worker
+automountServiceAccountToken: false
+---
+# MODEL_GATEWAY_CLIENT_SECRET (client 'quality'), EVAL_USER_EMAIL/EVAL_USER_PASSWORD
+# (service account with plan 'internal'), ALERT_WEBHOOK_URL (optional).
+apiVersion: secrets.infisical.com/v1alpha1
+kind: InfisicalSecret
+metadata:
+  name: quality-worker-secrets
+spec:
+  hostAPI: https://infisical.everesto.live/api
+  resyncInterval: 60
+  authentication:
+    universalAuth:
+      secretsScope:
+        projectSlug: autonomous-agency
+        envSlug: dev
+        secretsPath: "/quality"
+      credentialsRef:
+        secretName: infisical-universal-auth
+        secretNamespace: autonomous-agency
+  managedKubeSecretReferences:
+    - secretName: quality-worker-secrets
+      secretNamespace: autonomous-agency
+      creationPolicy: Owner
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: quality-online-judge
+  labels: { app.kubernetes.io/name: quality-worker }
+spec:
+  schedule: "5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 3000
+      template:
+        metadata:
+          labels: { app.kubernetes.io/name: quality-worker, app.kubernetes.io/part-of: autonomous-agency }
+        spec:
+          restartPolicy: Never
+          serviceAccountName: quality-worker
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            seccompProfile: { type: RuntimeDefault }
+          containers:
+            - name: job
+              image: ghcr.io/autonomous-agency/quality-worker:latest
+              command: ["python", "-m", "quality", "online"]
+              env:
+                - { name: SERVICE_NAME, value: quality-worker }
+                - { name: EDGE_URL, value: "http://edge-gateway:8000" }
+              envFrom:
+                - configMapRef: { name: agency-runtime }
+                - secretRef: { name: agency-shared-secrets }
+                - secretRef: { name: quality-worker-secrets }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              resources:
+                requests: { cpu: 50m, memory: 128Mi }
+                limits: { memory: 384Mi }
+              volumeMounts:
+                - { name: config, mountPath: /app/config, readOnly: true }
+                - { name: prompts, mountPath: /app/prompts, readOnly: true }
+          volumes:
+            - name: config
+              projected:
+                sources:
+                  - configMap:
+                      name: agency-config
+                      items:
+                        - { key: models.yaml, path: models.yaml }
+                        - { key: plans.yaml, path: plans.yaml }
+                        - { key: topics.yaml, path: topics.yaml }
+                        - { key: privacy.yaml, path: privacy.yaml }
+                        - { key: evals.yaml, path: evals.yaml }
+            - name: prompts
+              configMap: { name: agency-prompts }
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: quality-drift
+  labels: { app.kubernetes.io/name: quality-worker }
+spec:
+  schedule: "20 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 3000
+      template:
+        metadata:
+          labels: { app.kubernetes.io/name: quality-worker, app.kubernetes.io/part-of: autonomous-agency }
+        spec:
+          restartPolicy: Never
+          serviceAccountName: quality-worker
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            seccompProfile: { type: RuntimeDefault }
+          containers:
+            - name: job
+              image: ghcr.io/autonomous-agency/quality-worker:latest
+              command: ["python", "-m", "quality", "drift"]
+              env:
+                - { name: SERVICE_NAME, value: quality-worker }
+                - { name: EDGE_URL, value: "http://edge-gateway:8000" }
+              envFrom:
+                - configMapRef: { name: agency-runtime }
+                - secretRef: { name: agency-shared-secrets }
+                - secretRef: { name: quality-worker-secrets }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              resources:
+                requests: { cpu: 50m, memory: 128Mi }
+                limits: { memory: 384Mi }
+              volumeMounts:
+                - { name: config, mountPath: /app/config, readOnly: true }
+                - { name: prompts, mountPath: /app/prompts, readOnly: true }
+          volumes:
+            - name: config
+              projected:
+                sources:
+                  - configMap:
+                      name: agency-config
+                      items:
+                        - { key: models.yaml, path: models.yaml }
+                        - { key: plans.yaml, path: plans.yaml }
+                        - { key: topics.yaml, path: topics.yaml }
+                        - { key: privacy.yaml, path: privacy.yaml }
+                        - { key: evals.yaml, path: evals.yaml }
+            - name: prompts
+              configMap: { name: agency-prompts }
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: data-retention
+  labels: { app.kubernetes.io/name: quality-worker }
+spec:
+  schedule: "30 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 3000
+      template:
+        metadata:
+          labels: { app.kubernetes.io/name: quality-worker, app.kubernetes.io/part-of: autonomous-agency }
+        spec:
+          restartPolicy: Never
+          serviceAccountName: quality-worker
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            seccompProfile: { type: RuntimeDefault }
+          containers:
+            - name: job
+              image: ghcr.io/autonomous-agency/quality-worker:latest
+              command: ["python", "-m", "quality", "retention"]
+              env:
+                - { name: SERVICE_NAME, value: quality-worker }
+                - { name: EDGE_URL, value: "http://edge-gateway:8000" }
+              envFrom:
+                - configMapRef: { name: agency-runtime }
+                - secretRef: { name: agency-shared-secrets }
+                - secretRef: { name: quality-worker-secrets }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities: { drop: [ALL] }
+              resources:
+                requests: { cpu: 50m, memory: 128Mi }
+                limits: { memory: 384Mi }
+              volumeMounts:
+                - { name: config, mountPath: /app/config, readOnly: true }
+                - { name: prompts, mountPath: /app/prompts, readOnly: true }
+          volumes:
+            - name: config
+              projected:
+                sources:
+                  - configMap:
+                      name: agency-config
+                      items:
+                        - { key: models.yaml, path: models.yaml }
+                        - { key: plans.yaml, path: plans.yaml }
+                        - { key: topics.yaml, path: topics.yaml }
+                        - { key: privacy.yaml, path: privacy.yaml }
+                        - { key: evals.yaml, path: evals.yaml }
+            - name: prompts
+              configMap: { name: agency-prompts }

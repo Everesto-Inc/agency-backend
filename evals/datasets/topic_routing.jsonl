@@ -1,0 +1,10 @@
+{"prompt": "What is the real-world range and charging speed of the Hyundai Ioniq 5 2024?", "expected_topic": "ev_research"}
+{"prompt": "Compare running cost of a Tesla Model 3 vs a diesel car in France for 15000 km per year", "expected_topic": "ev_research"}
+{"prompt": "Is a BYD Seal cheaper to charge than a Polestar 2 in Germany?", "expected_topic": "ev_research"}
+{"prompt": "Find the cheapest price for Sony WH-1000XM5 headphones in Germany", "expected_topic": "product_finder"}
+{"prompt": "Where to buy an iPhone 16 128GB at the lowest price in the US?", "expected_topic": "product_finder"}
+{"prompt": "Best price for a Dyson V15 vacuum, any retailer, ship to UK", "expected_topic": "product_finder"}
+{"prompt": "What's the P/E ratio and dividend yield of Microsoft stock?", "expected_topic": "finance"}
+{"prompt": "Analyse the volatility of a portfolio of 60% VTI and 40% BND ETF", "expected_topic": "finance"}
+{"prompt": "Should I invest in NVDA shares given its market cap?", "expected_topic": "finance"}
+{"prompt": "I need something to get me to work every day without petrol", "expected_topic": "ev_research", "keyword_routable": false}
