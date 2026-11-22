@@ -38,3 +38,7 @@ Generate the internal ones: `python3 scripts/gen_secrets.py` (add `--eddsa` for 
 !!! warning "Production safety checks"
     Outside `ENVIRONMENT=dev` the services refuse to start with: an HS256 `JWT_SECRET_KEY`, no `JWT_PUBLIC_KEY`,
     `*` in CORS origins, or a `DATABASE_URL` without `ssl-mode=REQUIRED|VERIFY_CA|VERIFY_IDENTITY`.
+
+---
+
+[← LLMOps (models, usage, quality)](llmops.md) · **[Next: Data (MySQL & Redis) →](data.md)**

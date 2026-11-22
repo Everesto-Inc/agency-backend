@@ -84,3 +84,7 @@ display names; month-over-month change in %.
 | One user (admin) | `GET /admin/dashboard/users/{user_id}?month=2026-11` |
 
 Typed client for the frontend: `npx openapi-typescript openapi/edge-gateway.json -o src/api/schema.d.ts`.
+
+---
+
+[← Architecture](architecture.md) · **[Next: LLMOps (models, usage, quality) →](llmops.md)**

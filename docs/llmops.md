@@ -72,3 +72,7 @@ docker compose --profile quality run --rm quality-worker offline --tags smoke --
 Emails, phone/card numbers, IBANs … are redacted **before** any provider call and before storage
 (`config/privacy.yaml`). Old prompt/answer text is removed by the daily retention job; users can export
 or delete all their data (`/auth/me/export`, `DELETE /auth/me`).
+
+---
+
+[← Using the APIs](apis.md) · **[Next: Configuration & secrets →](configuration.md)**

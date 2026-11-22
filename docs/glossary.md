@@ -18,3 +18,7 @@
 | **Drift** | Quality/cost signals of the last day vs the previous week |
 | **PII redaction** | Personal data replaced (`[EMAIL]`, `[CARD]` …) before LLM calls and storage |
 | **Space** (Backstage) | DevOps space `orchid`: the team + its apps, CI and deployments |
+
+---
+
+[← CI/CD & operations](operations.md) · **[Back to the start →](index.md)**
