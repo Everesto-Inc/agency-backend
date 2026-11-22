@@ -18,29 +18,25 @@ library `libs/agency_platform`, so a new topic gets auth, quotas, tracking and s
 ## What happens during one question
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '14px', 'actorBkg': '#dbeafe', 'actorBorder': '#2563eb', 'actorTextColor': '#1e3a8a', 'signalColor': '#334155', 'signalTextColor': '#0f172a', 'noteBkgColor': '#fef3c7', 'noteBorderColor': '#d97706', 'loopTextColor': '#7c2d12', 'labelBoxBkgColor': '#ffedd5', 'labelBoxBorderColor': '#ea580c', 'activationBkgColor': '#e0f2fe', 'sequenceNumberColor': '#ffffff'}}}%%
 sequenceDiagram
-  autonumber
-  actor U as 👤 User
-  box rgb(219, 234, 254) agency services
-    participant E as 🚪 edge gateway
-    participant T as 🔋 topic service (e.g. EV Helper)
-    participant G as 🧭 model gateway
-  end
-  box rgb(255, 237, 213) model provider
-    participant M as ✨ Gemini
-  end
-  box rgb(241, 245, 249) data
-    participant DB as 🗄️ MySQL
-    participant R as ⚡ Redis
-  end
+  actor U as User
+  participant E as edge gateway
+  participant T as topic service (e.g. EV Helper)
+  participant G as model gateway
+  participant M as Gemini
+  participant DB as MySQL
+  participant R as Redis
+  rect rgba(59, 130, 246, 0.14)
   U->>E: POST /api/v1/chat (Bearer token)
   E->>R: account + plan (60 s cache)
   E->>E: pick the topic (keywords, cheap LLM call only if unclear)
   E->>T: POST /api/v1/ev_research/run (same token)
+  end
+  rect rgba(245, 158, 11, 0.14)
   T->>R: preflight: plan includes topic? rate limit, daily token/cost quota
   T->>DB: agent_runs: status running
-  rect rgb(240, 253, 244)
+  end
+  rect rgba(34, 197, 94, 0.14)
   loop every LLM call of the agent
     T->>G: OpenAI-style call, model = "task-synthesis" (never a model name)
     G->>G: route to tier (low/mid/high) ≤ plan ceiling, redact PII
@@ -49,9 +45,13 @@ sequenceDiagram
     G->>DB: llm_calls + usage_daily (batched)
   end
   end
+  rect rgba(139, 92, 246, 0.14)
   T-->>U: streamed events: status, token (answer), usage, done
   T->>DB: agent_runs: tokens, cost, latency, answer (PII-redacted)
+  end
 ```
+
+<small>🟦 authenticate + route · 🟨 preflight checks · 🟩 every LLM call · 🟪 answer + bookkeeping</small>
 
 ## Request authentication
 
