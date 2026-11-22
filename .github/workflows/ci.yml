@@ -1,0 +1,74 @@
+# CI for agency-backend — managed by Backstage (Edit pipeline flips the switches below), built on Loop.
+# This repo builds 6 images from one Dockerfile (see ci/README.md):
+#   loop    quality gate once (Gitleaks, Trivy, tests via ci/test.sh, Semgrep, SonarQube) + the edge-gateway image
+#   images  the other 5 service images, only after `loop` passed (scans + build + push; no duplicate quality run)
+# Images: ghcr.io/everesto-inc/agency-<service>:sha-<7> (pushed from main only).
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['docs/**', 'mkdocs.yml', 'catalog-info.yaml', '*.md']   # docs/settings only → no rebuild
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # pull requests: a newer push cancels the older run · main: every commit finishes (each one publishes an image)
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  loop:
+    uses: Everesto-Inc/loop/.github/workflows/pipeline.yml@4d70c4efcdad7bd522d60fe13d6c324a83fe0936 # v1.1.2
+    with:
+      stack: docker          # uv monorepo: no root requirements.txt — tests run via test-command
+      runner: ubuntu-24.04-arm
+      tests: true
+      semgrep: true
+      sonarqube: true
+      trivy: report
+      test-command: bash ci/test.sh
+      sonar-args: >-
+        -Dsonar.python.version=3.13
+        -Dsonar.python.coverage.reportPaths=libs/*/coverage.xml,services/*/coverage.xml
+        -Dsonar.exclusions=ci/legacy-ci-cd.yaml,evals/reports/**
+      image: ghcr.io/everesto-inc/agency-edge-gateway
+      build-args: |
+        SERVICE=edge_gateway
+        MODULE=edge_gateway.main:app
+    secrets:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}   # only what Loop needs — never `inherit` (least privilege)
+    permissions:
+      contents: read
+      packages: write        # push + keep the last 5 images in ghcr.io
+
+  images:
+    needs: loop
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: agency-model-gateway, service: model_gateway, module: "model_gateway.main:app", playwright: "false" }
+          - { image: agency-topic-ev-research, service: topic_ev_research, module: "ev_research.main:app", playwright: "true" }
+          - { image: agency-topic-product-finder, service: topic_product_finder, module: "product_finder.main:app", playwright: "false" }
+          - { image: agency-topic-finance, service: topic_finance, module: "finance.main:app", playwright: "false" }
+          - { image: agency-quality-worker, service: quality_worker, module: "quality.__main__:main", playwright: "false" }
+    uses: Everesto-Inc/loop/.github/workflows/pipeline.yml@4d70c4efcdad7bd522d60fe13d6c324a83fe0936 # v1.1.2
+    with:
+      stack: docker
+      runner: ubuntu-24.04-arm
+      tests: false           # already run once in `loop`
+      semgrep: false
+      sonarqube: false
+      trivy: report
+      image: ghcr.io/everesto-inc/${{ matrix.image }}
+      build-args: |
+        SERVICE=${{ matrix.service }}
+        MODULE=${{ matrix.module }}
+        INSTALL_PLAYWRIGHT=${{ matrix.playwright }}
+    permissions:
+      contents: read
+      packages: write
