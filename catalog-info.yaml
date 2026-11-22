@@ -3,7 +3,8 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: agency-backend
-  description: "Application agency-backend of space orchid"
+  title: Autonomous Agency — backend
+  description: "LLMOps platform: topic agents (EV, product finder, finance) behind one model gateway, with auth, per-topic usage + cost, evals and dashboards"
   annotations:
     github.com/project-slug: Everesto-Inc/agency-backend
     everesto.live/ci-workflow: ci.yml
@@ -14,8 +15,95 @@ metadata:
     everesto.live/semgrep: "on"
     sonarqube.org/project-key: agency-backend
     everesto.live/dependabot: "on"
+    backstage.io/techdocs-ref: dir:.            # docs/ + mkdocs.yml → Tech Docs tab
+  tags: [python, fastapi, llmops, langgraph, crewai, autogen, gemini, mysql]
+  links:
+    - { url: https://agency.everesto.live/docs, title: API (Swagger), icon: docs }
+    - { url: https://redis.everesto.live, title: Redis UI (platform-team), icon: dashboard }
 spec:
   type: service
   lifecycle: experimental
   owner: orchid
   system: orchid
+  # API pages (Backstage → APIs): rendered from openapi/*.json, which CI keeps in sync with the code
+  providesApis:
+    - agency-api
+    - agency-ev-research-api
+    - agency-product-finder-api
+    - agency-finance-api
+    - agency-model-gateway-api
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: agency-api
+  title: Agency API (public)
+  description: "The front door: sign-up/login, /chat (auto-routed to the right assistant), topics, usage + monthly dashboards, admin analytics"
+  tags: [public, rest, sse]
+spec:
+  type: openapi
+  lifecycle: experimental
+  owner: orchid
+  system: orchid
+  definition:
+    $text: ./openapi/edge-gateway.json
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: agency-ev-research-api
+  title: EV Helper API
+  description: "Topic 1 (LangGraph): EV specs, charging cost, EV vs fuel comparisons — grounded in crawled, verified sources"
+  tags: [topic, langgraph, sse]
+spec:
+  type: openapi
+  lifecycle: experimental
+  owner: orchid
+  system: orchid
+  definition:
+    $text: ./openapi/ev-research.json
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: agency-product-finder-api
+  title: Cheapest Product Finder API
+  description: "Topic 2 (CrewAI): finds and verifies the cheapest offers for a product across shops"
+  tags: [topic, crewai, sse]
+spec:
+  type: openapi
+  lifecycle: experimental
+  owner: orchid
+  system: orchid
+  definition:
+    $text: ./openapi/product-finder.json
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: agency-finance-api
+  title: Finance Analyst API
+  description: "Topic 3 (AutoGen): market-data analysis by an agent team with a compliance reviewer"
+  tags: [topic, autogen, sse]
+spec:
+  type: openapi
+  lifecycle: experimental
+  owner: orchid
+  system: orchid
+  definition:
+    $text: ./openapi/finance.json
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: agency-model-gateway-api
+  title: Model Gateway API (internal)
+  description: "OpenAI-compatible LLM router used by every agent: picks the Gemini tier, falls back, records tokens + cost per topic. Cluster-internal only."
+  tags: [internal, openai-compatible]
+spec:
+  type: openapi
+  lifecycle: experimental
+  owner: orchid
+  system: orchid
+  definition:
+    $text: ./openapi/model-gateway.json

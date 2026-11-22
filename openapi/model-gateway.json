@@ -1,0 +1,506 @@
+{
+  "components": {
+    "schemas": {
+      "ChatCompletion": {
+        "additionalProperties": true,
+        "description": "OpenAI chat.completion object (documentation; the provider response is passed through).",
+        "properties": {
+          "choices": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Choices",
+            "type": "array"
+          },
+          "created": {
+            "title": "Created",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "object": {
+            "default": "chat.completion",
+            "title": "Object",
+            "type": "string"
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usage"
+          }
+        },
+        "required": [
+          "id",
+          "created",
+          "model",
+          "choices"
+        ],
+        "title": "ChatCompletion",
+        "type": "object"
+      },
+      "ChatCompletionRequest": {
+        "additionalProperties": true,
+        "properties": {
+          "messages": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Messages",
+            "type": "array"
+          },
+          "model": {
+            "default": "auto",
+            "title": "Model",
+            "type": "string"
+          },
+          "stream": {
+            "default": false,
+            "title": "Stream",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "messages"
+        ],
+        "title": "ChatCompletionRequest",
+        "type": "object"
+      },
+      "ErrorDetail": {
+        "properties": {
+          "code": {
+            "description": "Stable machine-readable code, e.g. QUOTA_EXCEEDED",
+            "examples": [
+              "QUOTA_EXCEEDED"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Extra context, e.g. the plan or the field errors",
+            "title": "Details"
+          },
+          "message": {
+            "description": "Human-readable explanation (safe to show to users)",
+            "title": "Message",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Echoed X-Request-ID; quote it when reporting issues",
+            "title": "Request Id"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorDetail",
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "description": "Every non-2xx response from every service has this shape.",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "ModelAlias": {
+        "properties": {
+          "id": {
+            "examples": [
+              "task-synthesis"
+            ],
+            "title": "Id",
+            "type": "string"
+          },
+          "object": {
+            "default": "model",
+            "title": "Object",
+            "type": "string"
+          },
+          "owned_by": {
+            "default": "agency",
+            "title": "Owned By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "ModelAlias",
+        "type": "object"
+      },
+      "ModelList": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/ModelAlias"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "object": {
+            "default": "list",
+            "title": "Object",
+            "type": "string"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "ModelList",
+        "type": "object"
+      },
+      "RouteDecisionOut": {
+        "properties": {
+          "candidates": {
+            "description": "Models tried in order (fallbacks after the first)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "ceiling": {
+            "description": "Highest tier the caller's plan allows",
+            "title": "Ceiling",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "source": {
+            "description": "task | tier | classifier | judge | default",
+            "title": "Source",
+            "type": "string"
+          },
+          "tier": {
+            "title": "Tier",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tier",
+          "source",
+          "reason",
+          "ceiling",
+          "candidates"
+        ],
+        "title": "RouteDecisionOut",
+        "type": "object"
+      },
+      "RouteProbe": {
+        "properties": {
+          "has_tools": {
+            "default": false,
+            "title": "Has Tools",
+            "type": "boolean"
+          },
+          "messages": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "minItems": 1,
+            "title": "Messages",
+            "type": "array"
+          },
+          "model": {
+            "default": "auto",
+            "title": "Model",
+            "type": "string"
+          }
+        },
+        "required": [
+          "messages"
+        ],
+        "title": "RouteProbe",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "CallToken": {
+        "description": "Per-run call token minted by the calling service (agency_platform.llm.call_token). Internal only: this service is never exposed publicly.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "The one router every agent uses for LLM calls (OpenAI-compatible). Callers ask for `auto`, `tier-<low|mid|high>` or `task-<name>`, never a model; the gateway picks the model, falls back within the tier, records tokens + cost per topic, and enforces plan ceilings. Cluster-internal: never routed by the public ingress.",
+    "title": "Model Gateway (internal)",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/chat/completions": {
+      "post": {
+        "operationId": "chat_completions",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Agency-Min-Tier",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Agency-Min-Tier"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Agency-Prompt",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Agency-Prompt"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatCompletionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatCompletion"
+                }
+              },
+              "text/event-stream": {
+                "example": "data: {\"object\": \"chat.completion.chunk\", ...}\n\ndata: [DONE]\n\n",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "chat.completion (stream=false) or chat.completion.chunk SSE (stream=true). Headers X-Agency-Tier / X-Agency-Model say what was used."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad request (e.g. unknown topic, malformed input)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or daily quota reached (codes RATE_LIMITED / QUOTA_EXCEEDED); see the Retry-After header"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Temporarily unavailable (topic disabled, model gateway down, ...)"
+          }
+        },
+        "security": [
+          {
+            "CallToken": []
+          }
+        ],
+        "summary": "Chat completion, routed to a model tier",
+        "tags": [
+          "OpenAI-compatible"
+        ]
+      }
+    },
+    "/v1/models": {
+      "get": {
+        "operationId": "list_models",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          }
+        },
+        "security": [
+          {
+            "CallToken": []
+          }
+        ],
+        "summary": "Model aliases callers may request (auto, tier-*, task-*)",
+        "tags": [
+          "OpenAI-compatible"
+        ]
+      }
+    },
+    "/v1/route": {
+      "post": {
+        "description": "Heuristic-only dry run (no judge call, no cost): what tier would this get?",
+        "operationId": "route_dry_run",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RouteProbe"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteDecisionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "CallToken": []
+          }
+        ],
+        "summary": "Dry-run: which tier and models would this request get?",
+        "tags": [
+          "Routing"
+        ]
+      }
+    }
+  },
+  "tags": [
+    {
+      "description": "Drop-in for any OpenAI client (base_url = this service).",
+      "name": "OpenAI-compatible"
+    },
+    {
+      "description": "Inspect routing decisions without calling a model.",
+      "name": "Routing"
+    }
+  ]
+}

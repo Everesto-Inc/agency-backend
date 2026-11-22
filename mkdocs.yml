@@ -1,0 +1,24 @@
+site_name: Autonomous Agency — backend
+site_description: How the agency backend works, how to run it, and how to change it
+repo_url: https://github.com/Everesto-Inc/agency-backend
+edit_uri: edit/main/docs/
+nav:
+  - Start here: index.md
+  - Run it locally: getting-started.md
+  - Architecture: architecture.md
+  - Using the APIs: apis.md
+  - LLMOps (models, usage, quality): llmops.md
+  - Configuration & secrets: configuration.md
+  - Data (MySQL & Redis): data.md
+  - Development guide: development.md
+  - CI/CD & operations: operations.md
+  - Glossary: glossary.md
+plugins:
+  - techdocs-core
+markdown_extensions:
+  # ```mermaid blocks → <pre class="mermaid"> so Backstage's Mermaid add-on draws them (instead of plain text)
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format

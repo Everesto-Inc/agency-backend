@@ -1,0 +1,4983 @@
+{
+  "components": {
+    "schemas": {
+      "AccountExport": {
+        "properties": {
+          "account": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account"
+          },
+          "runs": {
+            "description": "Every run: prompt, answer, tokens, cost, feedback",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Runs",
+            "type": "array"
+          },
+          "usage_daily": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Usage Daily",
+            "type": "array"
+          }
+        },
+        "required": [
+          "account",
+          "runs",
+          "usage_daily"
+        ],
+        "title": "AccountExport",
+        "type": "object"
+      },
+      "AccountRef": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "plan": {
+            "title": "Plan",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "plan"
+        ],
+        "title": "AccountRef",
+        "type": "object"
+      },
+      "AdminDashboard": {
+        "properties": {
+          "by_model": {
+            "items": {
+              "$ref": "#/components/schemas/ModelUsage"
+            },
+            "title": "By Model",
+            "type": "array"
+          },
+          "by_topic": {
+            "items": {
+              "$ref": "#/components/schemas/TopicBreakdown"
+            },
+            "title": "By Topic",
+            "type": "array"
+          },
+          "change": {
+            "$ref": "#/components/schemas/Change"
+          },
+          "currency": {
+            "const": "USD",
+            "default": "USD",
+            "title": "Currency",
+            "type": "string"
+          },
+          "daily": {
+            "items": {
+              "$ref": "#/components/schemas/DailyPoint"
+            },
+            "title": "Daily",
+            "type": "array"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "previous_month": {
+            "$ref": "#/components/schemas/UsageTotals"
+          },
+          "runs": {
+            "$ref": "#/components/schemas/RunStats"
+          },
+          "top_users": {
+            "description": "Highest cost first (max 10)",
+            "items": {
+              "$ref": "#/components/schemas/UserUsage"
+            },
+            "title": "Top Users",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/UsageTotals"
+          },
+          "users": {
+            "$ref": "#/components/schemas/UserCounts"
+          }
+        },
+        "required": [
+          "period",
+          "totals",
+          "previous_month",
+          "change",
+          "by_topic",
+          "by_model",
+          "daily",
+          "users",
+          "runs",
+          "top_users"
+        ],
+        "title": "AdminDashboard",
+        "type": "object"
+      },
+      "AdminRun": {
+        "properties": {
+          "cache_hit": {
+            "title": "Cache Hit",
+            "type": "boolean"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "feedback_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback Score"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency Ms"
+          },
+          "llm_calls": {
+            "title": "Llm Calls",
+            "type": "integer"
+          },
+          "prompt_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Prompt versions + A/B arms used",
+            "title": "Prompt Fingerprint"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "topic": {
+            "title": "Topic",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "user_id",
+          "topic",
+          "status",
+          "error_code",
+          "cache_hit",
+          "latency_ms",
+          "cost_usd",
+          "llm_calls",
+          "feedback_score",
+          "created_at"
+        ],
+        "title": "AdminRun",
+        "type": "object"
+      },
+      "CanaryStat": {
+        "properties": {
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "avg_cost_usd": {
+            "title": "Avg Cost Usd",
+            "type": "number"
+          },
+          "canary": {
+            "title": "Canary",
+            "type": "boolean"
+          },
+          "judge_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Judge Score"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "p95_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P95 Ms"
+          },
+          "success_rate": {
+            "title": "Success Rate",
+            "type": "number"
+          },
+          "tier": {
+            "title": "Tier",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tier",
+          "model",
+          "canary",
+          "attempts",
+          "success_rate",
+          "p95_ms",
+          "avg_cost_usd",
+          "judge_score"
+        ],
+        "title": "CanaryStat",
+        "type": "object"
+      },
+      "Change": {
+        "description": "% change vs the previous month (null when the previous month was 0).",
+        "properties": {
+          "cost_usd_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Usd Pct"
+          },
+          "runs_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runs Pct"
+          },
+          "total_tokens_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Tokens Pct"
+          }
+        },
+        "required": [
+          "total_tokens_pct",
+          "cost_usd_pct",
+          "runs_pct"
+        ],
+        "title": "Change",
+        "type": "object"
+      },
+      "ChatBody": {
+        "properties": {
+          "prompt": {
+            "description": "Any question; the right assistant is picked",
+            "examples": [
+              "Cheapest new Sony WH-1000XM5 headphones in the US"
+            ],
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Prompt",
+            "type": "string"
+          },
+          "session_id": {
+            "default": "default",
+            "description": "Conversation id: same id = follow-up questions share memory",
+            "pattern": "^[A-Za-z0-9\\-_]{1,64}$",
+            "title": "Session Id",
+            "type": "string"
+          },
+          "stream": {
+            "default": true,
+            "description": "true: Server-Sent Events (first event `routed`); false: one JSON document",
+            "title": "Stream",
+            "type": "boolean"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Skip auto-routing and use this topic (see GET /topics)",
+            "examples": [
+              null
+            ],
+            "title": "Topic"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "title": "ChatBody",
+        "type": "object"
+      },
+      "Credentials": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "minLength": 10,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "Credentials",
+        "type": "object"
+      },
+      "DailyPoint": {
+        "properties": {
+          "by_topic": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DailyTopicPoint"
+            },
+            "description": "Only topics with activity that day",
+            "title": "By Topic",
+            "type": "object"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "llm_calls": {
+            "title": "Llm Calls",
+            "type": "integer"
+          },
+          "runs": {
+            "title": "Runs",
+            "type": "integer"
+          },
+          "total_tokens": {
+            "title": "Total Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "total_tokens",
+          "cost_usd",
+          "runs",
+          "llm_calls",
+          "by_topic"
+        ],
+        "title": "DailyPoint",
+        "type": "object"
+      },
+      "DailyTopicPoint": {
+        "properties": {
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "runs": {
+            "title": "Runs",
+            "type": "integer"
+          },
+          "total_tokens": {
+            "title": "Total Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_tokens",
+          "cost_usd",
+          "runs"
+        ],
+        "title": "DailyTopicPoint",
+        "type": "object"
+      },
+      "DailyUsage": {
+        "properties": {
+          "cached_runs": {
+            "title": "Cached Runs",
+            "type": "integer"
+          },
+          "completion_tokens": {
+            "title": "Completion Tokens",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "llm_calls": {
+            "title": "Llm Calls",
+            "type": "integer"
+          },
+          "prompt_tokens": {
+            "title": "Prompt Tokens",
+            "type": "integer"
+          },
+          "runs": {
+            "title": "Runs",
+            "type": "integer"
+          },
+          "topic": {
+            "title": "Topic",
+            "type": "string"
+          },
+          "total_tokens": {
+            "title": "Total Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "prompt_tokens",
+          "completion_tokens",
+          "total_tokens",
+          "cost_usd",
+          "llm_calls",
+          "runs",
+          "cached_runs",
+          "day",
+          "topic"
+        ],
+        "title": "DailyUsage",
+        "type": "object"
+      },
+      "DriftSummary": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "flagged": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Flagged",
+            "type": "array"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "title": "Metrics",
+            "type": "object"
+          }
+        },
+        "required": [
+          "at",
+          "flagged",
+          "metrics"
+        ],
+        "title": "DriftSummary",
+        "type": "object"
+      },
+      "EraseBody": {
+        "properties": {
+          "confirm": {
+            "description": "Must be true",
+            "title": "Confirm",
+            "type": "boolean"
+          },
+          "password": {
+            "description": "Re-authentication for a destructive action",
+            "maxLength": 256,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password",
+          "confirm"
+        ],
+        "title": "EraseBody",
+        "type": "object"
+      },
+      "ErrorDetail": {
+        "properties": {
+          "code": {
+            "description": "Stable machine-readable code, e.g. QUOTA_EXCEEDED",
+            "examples": [
+              "QUOTA_EXCEEDED"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Extra context, e.g. the plan or the field errors",
+            "title": "Details"
+          },
+          "message": {
+            "description": "Human-readable explanation (safe to show to users)",
+            "title": "Message",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Echoed X-Request-ID; quote it when reporting issues",
+            "title": "Request Id"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorDetail",
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "description": "Every non-2xx response from every service has this shape.",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "EvalCase": {
+        "properties": {
+          "answer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer"
+          },
+          "checks": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checks"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "label": {
+            "enum": [
+              "positive",
+              "negative"
+            ],
+            "title": "Label",
+            "type": "string"
+          },
+          "prompt": {
+            "title": "Prompt",
+            "type": "string"
+          },
+          "source_request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Request Id"
+          },
+          "status": {
+            "enum": [
+              "candidate",
+              "approved",
+              "rejected",
+              "exported"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "topic": {
+            "title": "Topic",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "topic",
+          "source_request_id",
+          "prompt",
+          "answer",
+          "label",
+          "comment",
+          "status",
+          "checks",
+          "created_at"
+        ],
+        "title": "EvalCase",
+        "type": "object"
+      },
+      "EvalCaseStatus": {
+        "properties": {
+          "checks": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checks"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "checks"
+        ],
+        "title": "EvalCaseStatus",
+        "type": "object"
+      },
+      "EvalCaseUpdate": {
+        "properties": {
+          "checks": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Expectations for the dataset: must_contain, must_not_contain, rubric, reference, ...",
+            "title": "Checks"
+          },
+          "status": {
+            "enum": [
+              "approved",
+              "rejected",
+              "candidate"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "EvalCaseUpdate",
+        "type": "object"
+      },
+      "ExperimentArm": {
+        "properties": {
+          "avg_call_cost_usd": {
+            "title": "Avg Call Cost Usd",
+            "type": "number"
+          },
+          "avg_feedback": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Feedback"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "error_rate": {
+            "title": "Error Rate",
+            "type": "number"
+          },
+          "feedback_count": {
+            "title": "Feedback Count",
+            "type": "integer"
+          },
+          "judge_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Judge Score"
+          },
+          "judged_runs": {
+            "title": "Judged Runs",
+            "type": "integer"
+          },
+          "p95_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P95 Ms"
+          },
+          "prompt_ref": {
+            "description": "topic/prompt@version~variant",
+            "examples": [
+              "ev_research/synthesize@2.0~b"
+            ],
+            "title": "Prompt Ref",
+            "type": "string"
+          },
+          "runs": {
+            "title": "Runs",
+            "type": "integer"
+          },
+          "variant": {
+            "title": "Variant",
+            "type": "string"
+          }
+        },
+        "required": [
+          "prompt_ref",
+          "variant",
+          "calls",
+          "runs",
+          "avg_call_cost_usd",
+          "p95_ms",
+          "error_rate",
+          "avg_feedback",
+          "feedback_count",
+          "judge_score",
+          "judged_runs"
+        ],
+        "title": "ExperimentArm",
+        "type": "object"
+      },
+      "LlmCall": {
+        "properties": {
+          "attempt": {
+            "title": "Attempt",
+            "type": "integer"
+          },
+          "cached": {
+            "title": "Cached",
+            "type": "boolean"
+          },
+          "canary": {
+            "title": "Canary",
+            "type": "boolean"
+          },
+          "completion_tokens": {
+            "title": "Completion Tokens",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Type"
+          },
+          "latency_ms": {
+            "title": "Latency Ms",
+            "type": "integer"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "pii_redactions": {
+            "title": "Pii Redactions",
+            "type": "integer"
+          },
+          "prompt_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Ref"
+          },
+          "prompt_tokens": {
+            "title": "Prompt Tokens",
+            "type": "integer"
+          },
+          "requested_model": {
+            "title": "Requested Model",
+            "type": "string"
+          },
+          "route_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Route Reason"
+          },
+          "route_source": {
+            "title": "Route Source",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task"
+          },
+          "tier": {
+            "title": "Tier",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task",
+          "prompt_ref",
+          "requested_model",
+          "route_source",
+          "route_reason",
+          "tier",
+          "model",
+          "attempt",
+          "status",
+          "error_type",
+          "cached",
+          "canary",
+          "pii_redactions",
+          "prompt_tokens",
+          "completion_tokens",
+          "cost_usd",
+          "latency_ms",
+          "created_at"
+        ],
+        "title": "LlmCall",
+        "type": "object"
+      },
+      "LoginBody": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 256,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "LoginBody",
+        "type": "object"
+      },
+      "Me": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "entitled_topics": {
+            "description": "Topics this plan includes ('*' = all)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Entitled Topics",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "max_model_tier": {
+            "description": "Highest model tier this plan may use",
+            "title": "Max Model Tier",
+            "type": "string"
+          },
+          "plan": {
+            "title": "Plan",
+            "type": "string"
+          },
+          "plan_display_name": {
+            "title": "Plan Display Name",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "user",
+              "admin",
+              "service"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "role",
+          "plan",
+          "plan_display_name",
+          "entitled_topics",
+          "max_model_tier"
+        ],
+        "title": "Me",
+        "type": "object"
+      },
+      "ModelPerformance": {
+        "properties": {
+          "attempts": {
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "cache_hit_rate": {
+            "title": "Cache Hit Rate",
+            "type": "number"
+          },
+          "canary": {
+            "title": "Canary",
+            "type": "boolean"
+          },
+          "completion_tokens": {
+            "title": "Completion Tokens",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "error_rate": {
+            "title": "Error Rate",
+            "type": "number"
+          },
+          "fallback_served": {
+            "description": "Calls this model served after another candidate failed",
+            "title": "Fallback Served",
+            "type": "integer"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "p50_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P50 Ms"
+          },
+          "p95_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P95 Ms"
+          },
+          "prompt_tokens": {
+            "title": "Prompt Tokens",
+            "type": "integer"
+          },
+          "tier": {
+            "title": "Tier",
+            "type": "string"
+          }
+        },
+        "required": [
+          "model",
+          "tier",
+          "canary",
+          "attempts",
+          "error_rate",
+          "fallback_served",
+          "cache_hit_rate",
+          "p50_ms",
+          "p95_ms",
+          "prompt_tokens",
+          "completion_tokens",
+          "cost_usd"
+        ],
+        "title": "ModelPerformance",
+        "type": "object"
+      },
+      "ModelUsage": {
+        "properties": {
+          "cache_hit_rate": {
+            "title": "Cache Hit Rate",
+            "type": "number"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "completion_tokens": {
+            "title": "Completion Tokens",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "error_rate": {
+            "title": "Error Rate",
+            "type": "number"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "prompt_tokens": {
+            "title": "Prompt Tokens",
+            "type": "integer"
+          },
+          "share_of_cost": {
+            "title": "Share Of Cost",
+            "type": "number"
+          },
+          "tier": {
+            "title": "Tier",
+            "type": "string"
+          },
+          "total_tokens": {
+            "title": "Total Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "model",
+          "tier",
+          "calls",
+          "error_rate",
+          "cache_hit_rate",
+          "prompt_tokens",
+          "completion_tokens",
+          "total_tokens",
+          "cost_usd",
+          "share_of_cost"
+        ],
+        "title": "ModelUsage",
+        "type": "object"
+      },
+      "MonthOption": {
+        "properties": {
+          "has_data": {
+            "title": "Has Data",
+            "type": "boolean"
+          },
+          "is_current": {
+            "title": "Is Current",
+            "type": "boolean"
+          },
+          "label": {
+            "examples": [
+              "November 2026"
+            ],
+            "title": "Label",
+            "type": "string"
+          },
+          "month": {
+            "description": "Value to pass as ?month=",
+            "examples": [
+              "2026-11"
+            ],
+            "title": "Month",
+            "type": "string"
+          }
+        },
+        "required": [
+          "month",
+          "label",
+          "is_current",
+          "has_data"
+        ],
+        "title": "MonthOption",
+        "type": "object"
+      },
+      "MonthsResponse": {
+        "description": "Options for the month picker, newest first. The current month is always included.",
+        "properties": {
+          "current": {
+            "title": "Current",
+            "type": "string"
+          },
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/MonthOption"
+            },
+            "title": "Months",
+            "type": "array"
+          }
+        },
+        "required": [
+          "current",
+          "months"
+        ],
+        "title": "MonthsResponse",
+        "type": "object"
+      },
+      "MyUsage": {
+        "properties": {
+          "last_30_days": {
+            "$ref": "#/components/schemas/UsagePeriod"
+          },
+          "month_to_date": {
+            "$ref": "#/components/schemas/UsagePeriod"
+          },
+          "plan": {
+            "title": "Plan",
+            "type": "string"
+          },
+          "today": {
+            "$ref": "#/components/schemas/Today",
+            "description": "Live counters; reset at 00:00 UTC"
+          }
+        },
+        "required": [
+          "plan",
+          "today",
+          "month_to_date",
+          "last_30_days"
+        ],
+        "title": "MyUsage",
+        "type": "object"
+      },
+      "OfflineEval": {
+        "properties": {
+          "cases": {
+            "title": "Cases",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "gate_passed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gate Passed"
+          },
+          "git_sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Git Sha"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "mean_cost_usd": {
+            "title": "Mean Cost Usd",
+            "type": "number"
+          },
+          "mean_judge_score": {
+            "title": "Mean Judge Score",
+            "type": "number"
+          },
+          "p95_latency_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P95 Latency Ms"
+          },
+          "pass_rate": {
+            "title": "Pass Rate",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "git_sha",
+          "label",
+          "cases",
+          "pass_rate",
+          "mean_judge_score",
+          "mean_cost_usd",
+          "p95_latency_ms",
+          "gate_passed"
+        ],
+        "title": "OfflineEval",
+        "type": "object"
+      },
+      "OnlineScores": {
+        "properties": {
+          "judge_score_24h": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Judge Score 24H"
+          },
+          "judge_score_7d": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Judge Score 7D"
+          },
+          "judged_7d": {
+            "title": "Judged 7D",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "judge_score_24h",
+          "judge_score_7d",
+          "judged_7d"
+        ],
+        "title": "OnlineScores",
+        "type": "object"
+      },
+      "Period": {
+        "properties": {
+          "days": {
+            "description": "Number of days covered",
+            "title": "Days",
+            "type": "integer"
+          },
+          "end": {
+            "description": "Last day covered: today for the current month, else the month's last day",
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "is_current": {
+            "title": "Is Current",
+            "type": "boolean"
+          },
+          "label": {
+            "examples": [
+              "November 2026"
+            ],
+            "title": "Label",
+            "type": "string"
+          },
+          "month": {
+            "examples": [
+              "2026-11"
+            ],
+            "title": "Month",
+            "type": "string"
+          },
+          "start": {
+            "description": "First day of the month",
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "month",
+          "label",
+          "start",
+          "end",
+          "days",
+          "is_current"
+        ],
+        "title": "Period",
+        "type": "object"
+      },
+      "PlanChange": {
+        "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None = no expiry",
+            "title": "Expires At"
+          },
+          "plan": {
+            "title": "Plan",
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan"
+        ],
+        "title": "PlanChange",
+        "type": "object"
+      },
+      "PlanChanged": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "plan": {
+            "title": "Plan",
+            "type": "string"
+          },
+          "plan_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan Expires At"
+          }
+        },
+        "required": [
+          "id",
+          "plan",
+          "plan_expires_at"
+        ],
+        "title": "PlanChanged",
+        "type": "object"
+      },
+      "RefreshBody": {
+        "properties": {
+          "refresh_token": {
+            "maxLength": 200,
+            "minLength": 20,
+            "title": "Refresh Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "refresh_token"
+        ],
+        "title": "RefreshBody",
+        "type": "object"
+      },
+      "RoutingStat": {
+        "properties": {
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "client_id": {
+            "description": "Calling service (topic, edge, quality)",
+            "title": "Client Id",
+            "type": "string"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "route_source": {
+            "description": "task | tier | classifier | judge | default",
+            "title": "Route Source",
+            "type": "string"
+          },
+          "tier": {
+            "title": "Tier",
+            "type": "string"
+          }
+        },
+        "required": [
+          "client_id",
+          "route_source",
+          "tier",
+          "calls",
+          "cost_usd"
+        ],
+        "title": "RoutingStat",
+        "type": "object"
+      },
+      "RunError": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "RunError",
+        "type": "object"
+      },
+      "RunResponse": {
+        "description": "Result of one agent run (stream=false). With stream=true the same information\narrives as SSE events: status, tool_call, tool_result, artifact, token, error, usage, done.",
+        "properties": {
+          "answer": {
+            "default": "",
+            "description": "Markdown answer",
+            "title": "Answer",
+            "type": "string"
+          },
+          "artifacts": {
+            "additionalProperties": true,
+            "description": "Structured data behind the answer (sources, numbers)",
+            "title": "Artifacts",
+            "type": "object"
+          },
+          "cache_hit": {
+            "default": false,
+            "description": "Answered from the response cache (identical recent question)",
+            "title": "Cache Hit",
+            "type": "boolean"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/RunError"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "routing": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Only via /chat: which topic was chosen and how",
+            "title": "Routing"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "success",
+              "error",
+              "timeout",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "steps": {
+            "description": "What the agent did, in order",
+            "items": {
+              "type": "string"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "topic": {
+            "title": "Topic",
+            "type": "string"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/RunUsage"
+          }
+        },
+        "required": [
+          "request_id",
+          "session_id",
+          "topic",
+          "status"
+        ],
+        "title": "RunResponse",
+        "type": "object"
+      },
+      "RunStats": {
+        "properties": {
+          "avg_latency_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Latency Ms"
+          },
+          "cache_hit_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cache Hit Rate"
+          },
+          "failed": {
+            "title": "Failed",
+            "type": "integer"
+          },
+          "negative_feedback": {
+            "title": "Negative Feedback",
+            "type": "integer"
+          },
+          "positive_feedback": {
+            "title": "Positive Feedback",
+            "type": "integer"
+          },
+          "runs": {
+            "title": "Runs",
+            "type": "integer"
+          },
+          "success_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Success Rate"
+          },
+          "successful": {
+            "title": "Successful",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "runs",
+          "successful",
+          "failed",
+          "success_rate",
+          "cache_hit_rate",
+          "avg_latency_ms",
+          "positive_feedback",
+          "negative_feedback"
+        ],
+        "title": "RunStats",
+        "type": "object"
+      },
+      "RunSummary": {
+        "properties": {
+          "cache_hit": {
+            "title": "Cache Hit",
+            "type": "boolean"
+          },
+          "completion_tokens": {
+            "title": "Completion Tokens",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "feedback_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback Score"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency Ms"
+          },
+          "llm_calls": {
+            "title": "Llm Calls",
+            "type": "integer"
+          },
+          "prompt_tokens": {
+            "title": "Prompt Tokens",
+            "type": "integer"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "topic": {
+            "title": "Topic",
+            "type": "string"
+          },
+          "total_tokens": {
+            "title": "Total Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "request_id",
+          "topic",
+          "status",
+          "cache_hit",
+          "prompt_tokens",
+          "completion_tokens",
+          "total_tokens",
+          "cost_usd",
+          "llm_calls",
+          "latency_ms",
+          "feedback_score",
+          "created_at"
+        ],
+        "title": "RunSummary",
+        "type": "object"
+      },
+      "RunUsage": {
+        "properties": {
+          "completion_tokens": {
+            "default": 0,
+            "title": "Completion Tokens",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "default": 0.0,
+            "description": "Provider cost of every LLM call this run made",
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "llm_calls": {
+            "default": 0,
+            "title": "Llm Calls",
+            "type": "integer"
+          },
+          "prompt_tokens": {
+            "default": 0,
+            "title": "Prompt Tokens",
+            "type": "integer"
+          },
+          "total_tokens": {
+            "default": 0,
+            "title": "Total Tokens",
+            "type": "integer"
+          }
+        },
+        "title": "RunUsage",
+        "type": "object"
+      },
+      "Today": {
+        "properties": {
+          "by_topic": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/TopicToday"
+            },
+            "title": "By Topic",
+            "type": "object"
+          },
+          "cost_limit_usd": {
+            "title": "Cost Limit Usd",
+            "type": "number"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "token_limit": {
+            "title": "Token Limit",
+            "type": "integer"
+          },
+          "tokens": {
+            "title": "Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tokens",
+          "token_limit",
+          "cost_usd",
+          "cost_limit_usd",
+          "by_topic"
+        ],
+        "title": "Today",
+        "type": "object"
+      },
+      "TokenPair": {
+        "properties": {
+          "access_token": {
+            "description": "Bearer token for every other endpoint (short-lived)",
+            "title": "Access Token",
+            "type": "string"
+          },
+          "expires_in": {
+            "description": "Access token lifetime in seconds",
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "plan": {
+            "description": "Effective subscription plan",
+            "title": "Plan",
+            "type": "string"
+          },
+          "refresh_token": {
+            "description": "Single-use; exchange at /auth/refresh for a new pair",
+            "title": "Refresh Token",
+            "type": "string"
+          },
+          "token_type": {
+            "const": "bearer",
+            "default": "bearer",
+            "title": "Token Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token",
+          "refresh_token",
+          "expires_in",
+          "plan"
+        ],
+        "title": "TokenPair",
+        "type": "object"
+      },
+      "TopicBreakdown": {
+        "properties": {
+          "avg_cost_per_run": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "cost_usd / runs (null when no runs)",
+            "title": "Avg Cost Per Run"
+          },
+          "display_name": {
+            "examples": [
+              "EV research"
+            ],
+            "title": "Display Name",
+            "type": "string"
+          },
+          "kind": {
+            "description": "assistant = a topic agent; routing = /chat topic selection; evals = quality jobs",
+            "enum": [
+              "assistant",
+              "routing",
+              "evals"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "share_of_cost": {
+            "description": "0..1 share of the period's total cost",
+            "title": "Share Of Cost",
+            "type": "number"
+          },
+          "topic": {
+            "examples": [
+              "ev_research"
+            ],
+            "title": "Topic",
+            "type": "string"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/UsageTotals"
+          }
+        },
+        "required": [
+          "topic",
+          "display_name",
+          "kind",
+          "totals",
+          "share_of_cost"
+        ],
+        "title": "TopicBreakdown",
+        "type": "object"
+      },
+      "TopicPerformance": {
+        "properties": {
+          "avg_cost_usd": {
+            "title": "Avg Cost Usd",
+            "type": "number"
+          },
+          "avg_feedback": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Feedback"
+          },
+          "cache_hit_rate": {
+            "title": "Cache Hit Rate",
+            "type": "number"
+          },
+          "feedback_count": {
+            "title": "Feedback Count",
+            "type": "integer"
+          },
+          "online_judge_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Online Judge Score"
+          },
+          "p95_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P95 Ms"
+          },
+          "runs": {
+            "title": "Runs",
+            "type": "integer"
+          },
+          "success_rate": {
+            "title": "Success Rate",
+            "type": "number"
+          },
+          "topic": {
+            "title": "Topic",
+            "type": "string"
+          }
+        },
+        "required": [
+          "topic",
+          "runs",
+          "success_rate",
+          "cache_hit_rate",
+          "p95_ms",
+          "avg_cost_usd",
+          "avg_feedback",
+          "feedback_count",
+          "online_judge_score"
+        ],
+        "title": "TopicPerformance",
+        "type": "object"
+      },
+      "TopicQuality": {
+        "properties": {
+          "drift": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DriftSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "offline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OfflineEval"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "online": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OnlineScores"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "topic": {
+            "title": "Topic",
+            "type": "string"
+          }
+        },
+        "required": [
+          "topic"
+        ],
+        "title": "TopicQuality",
+        "type": "object"
+      },
+      "TopicSummary": {
+        "properties": {
+          "daily_request_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Runs per day on the caller's plan (null = unlimited)",
+            "title": "Daily Request Limit"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "docs_path": {
+            "description": "This topic's own API docs",
+            "title": "Docs Path",
+            "type": "string"
+          },
+          "entitled": {
+            "description": "Whether the caller's plan includes it",
+            "title": "Entitled",
+            "type": "boolean"
+          },
+          "framework": {
+            "title": "Framework",
+            "type": "string"
+          },
+          "run_path": {
+            "description": "Run this topic directly (bypassing /chat auto-routing)",
+            "title": "Run Path",
+            "type": "string"
+          },
+          "topic": {
+            "examples": [
+              "ev_research"
+            ],
+            "title": "Topic",
+            "type": "string"
+          }
+        },
+        "required": [
+          "topic",
+          "display_name",
+          "framework",
+          "description",
+          "entitled",
+          "run_path",
+          "docs_path"
+        ],
+        "title": "TopicSummary",
+        "type": "object"
+      },
+      "TopicToday": {
+        "properties": {
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "llm_calls": {
+            "title": "Llm Calls",
+            "type": "integer"
+          },
+          "run_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Daily run limit on your plan (null = unlimited)",
+            "title": "Run Limit"
+          },
+          "runs": {
+            "title": "Runs",
+            "type": "integer"
+          },
+          "token_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Daily token limit for this topic (null = only the plan-wide limit)",
+            "title": "Token Limit"
+          },
+          "tokens": {
+            "title": "Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tokens",
+          "cost_usd",
+          "llm_calls",
+          "runs"
+        ],
+        "title": "TopicToday",
+        "type": "object"
+      },
+      "TopicUsageReport": {
+        "properties": {
+          "by_topic": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/UsageTotals"
+            },
+            "title": "By Topic",
+            "type": "object"
+          },
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "total": {
+            "$ref": "#/components/schemas/UsageTotals"
+          }
+        },
+        "required": [
+          "days",
+          "total",
+          "by_topic"
+        ],
+        "title": "TopicUsageReport",
+        "type": "object"
+      },
+      "UsagePeriod": {
+        "properties": {
+          "by_topic": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/UsageTotals"
+            },
+            "description": "Keyed by topic; 'routing' = /chat topic selection",
+            "title": "By Topic",
+            "type": "object"
+          },
+          "total": {
+            "$ref": "#/components/schemas/UsageTotals"
+          }
+        },
+        "required": [
+          "total",
+          "by_topic"
+        ],
+        "title": "UsagePeriod",
+        "type": "object"
+      },
+      "UsageTotals": {
+        "properties": {
+          "cached_runs": {
+            "title": "Cached Runs",
+            "type": "integer"
+          },
+          "completion_tokens": {
+            "title": "Completion Tokens",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "llm_calls": {
+            "title": "Llm Calls",
+            "type": "integer"
+          },
+          "prompt_tokens": {
+            "title": "Prompt Tokens",
+            "type": "integer"
+          },
+          "runs": {
+            "title": "Runs",
+            "type": "integer"
+          },
+          "total_tokens": {
+            "title": "Total Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "prompt_tokens",
+          "completion_tokens",
+          "total_tokens",
+          "cost_usd",
+          "llm_calls",
+          "runs",
+          "cached_runs"
+        ],
+        "title": "UsageTotals",
+        "type": "object"
+      },
+      "UserCounts": {
+        "properties": {
+          "active": {
+            "description": "Accounts with any usage in the period",
+            "title": "Active",
+            "type": "integer"
+          },
+          "by_plan": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Active accounts per plan (current snapshot)",
+            "title": "By Plan",
+            "type": "object"
+          },
+          "disabled": {
+            "title": "Disabled",
+            "type": "integer"
+          },
+          "new_signups": {
+            "title": "New Signups",
+            "type": "integer"
+          },
+          "total": {
+            "description": "All accounts (service accounts excluded)",
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "active",
+          "new_signups",
+          "disabled",
+          "by_plan"
+        ],
+        "title": "UserCounts",
+        "type": "object"
+      },
+      "UserDashboard": {
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/AccountRef"
+          },
+          "by_topic": {
+            "description": "Sorted by cost, highest first",
+            "items": {
+              "$ref": "#/components/schemas/TopicBreakdown"
+            },
+            "title": "By Topic",
+            "type": "array"
+          },
+          "change": {
+            "$ref": "#/components/schemas/Change"
+          },
+          "currency": {
+            "const": "USD",
+            "default": "USD",
+            "title": "Currency",
+            "type": "string"
+          },
+          "daily": {
+            "items": {
+              "$ref": "#/components/schemas/DailyPoint"
+            },
+            "title": "Daily",
+            "type": "array"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "previous_month": {
+            "$ref": "#/components/schemas/UsageTotals"
+          },
+          "recent_runs": {
+            "description": "Latest runs in the period (max 10)",
+            "items": {
+              "$ref": "#/components/schemas/RunSummary"
+            },
+            "title": "Recent Runs",
+            "type": "array"
+          },
+          "runs": {
+            "$ref": "#/components/schemas/RunStats"
+          },
+          "today": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Today"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Live quota status; only for the current month"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/UsageTotals"
+          }
+        },
+        "required": [
+          "period",
+          "account",
+          "totals",
+          "previous_month",
+          "change",
+          "by_topic",
+          "daily",
+          "runs",
+          "recent_runs"
+        ],
+        "title": "UserDashboard",
+        "type": "object"
+      },
+      "UserUsage": {
+        "properties": {
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "plan": {
+            "title": "Plan",
+            "type": "string"
+          },
+          "topics": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            "description": "{topic: {tokens, cost_usd, runs}}",
+            "title": "Topics",
+            "type": "object"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "email",
+          "plan",
+          "cost_usd",
+          "topics"
+        ],
+        "title": "UserUsage",
+        "type": "object"
+      },
+      "UserUsageDetail": {
+        "properties": {
+          "by_topic": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/UsageTotals"
+            },
+            "title": "By Topic",
+            "type": "object"
+          },
+          "daily": {
+            "items": {
+              "$ref": "#/components/schemas/DailyUsage"
+            },
+            "title": "Daily",
+            "type": "array"
+          },
+          "total": {
+            "$ref": "#/components/schemas/UsageTotals"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "total",
+          "by_topic",
+          "daily"
+        ],
+        "title": "UserUsageDetail",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "description": "Access token from POST /api/v1/auth/login (or /register). Expires after 15 minutes; use /api/v1/auth/refresh for a new one.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "\nThe public API of the agency: accounts, the `/chat` front door, the topic catalogue and usage.\n\n**Quick start**\n1. `POST /api/v1/auth/register` (or `/login`) and copy `access_token`.\n2. Click **Authorize** and paste it.\n3. `POST /api/v1/chat` with any question, or call a topic directly (`GET /api/v1/topics` lists them).\n4. `GET /api/v1/dashboard?month=YYYY-MM` is your monthly usage dashboard (tokens and cost per topic,\n   daily chart data, month-over-month change); `GET /api/v1/dashboard/months` fills the month picker.\n\n**Each assistant has its own API and docs** at `/api/v1/<topic>/docs`\n(`ev_research`, `product_finder`, `finance`). Locally they run on their own ports:\n[EV research](http://localhost:8001/api/v1/ev_research/docs) ·\n[Product finder](http://localhost:8002/api/v1/product_finder/docs) ·\n[Finance](http://localhost:8003/api/v1/finance/docs).\n\n**Errors** always look like `{\"error\": {\"code\", \"message\", \"request_id\", \"details\"}}`.\nBranch on `code` (e.g. `SUBSCRIPTION_REQUIRED` -> show an upgrade prompt, `QUOTA_EXCEEDED` -> retry after\nthe `Retry-After` header).\n",
+    "title": "Autonomous Agency API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/admin/canaries": {
+      "get": {
+        "operationId": "canaries",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "window",
+            "required": false,
+            "schema": {
+              "default": "24h",
+              "enum": [
+                "1h",
+                "24h",
+                "7d",
+                "30d"
+              ],
+              "title": "Window",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CanaryStat"
+                  },
+                  "title": "Response Canaries",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Canary model vs incumbents, per tier",
+        "tags": [
+          "Admin: models & routing"
+        ]
+      }
+    },
+    "/api/v1/admin/dashboard": {
+      "get": {
+        "description": "All users: tokens and cost per topic and per model, daily series, month-over-month change,\nusers (active, new, per plan), run outcomes and the top spenders.",
+        "operationId": "platform_dashboard",
+        "parameters": [
+          {
+            "description": "YYYY-MM (UTC). Omit for the current month. Options come from the /months endpoint.",
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "YYYY-MM (UTC). Omit for the current month. Options come from the /months endpoint.",
+              "examples": [
+                "2026-11"
+              ],
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDashboard"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad request (e.g. unknown topic, malformed input)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Platform dashboard for one month",
+        "tags": [
+          "Admin: dashboard"
+        ]
+      }
+    },
+    "/api/v1/admin/dashboard/months": {
+      "get": {
+        "operationId": "all_months",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonthsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Months with platform usage",
+        "tags": [
+          "Admin: dashboard"
+        ]
+      }
+    },
+    "/api/v1/admin/dashboard/users/{user_id}": {
+      "get": {
+        "operationId": "user_dashboard",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "YYYY-MM (UTC). Omit for the current month. Options come from the /months endpoint.",
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "YYYY-MM (UTC). Omit for the current month. Options come from the /months endpoint.",
+              "examples": [
+                "2026-11"
+              ],
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDashboard"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad request (e.g. unknown topic, malformed input)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "One user's dashboard (the view that user sees)",
+        "tags": [
+          "Admin: dashboard"
+        ]
+      }
+    },
+    "/api/v1/admin/eval-cases": {
+      "get": {
+        "operationId": "list_eval_cases",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "topic",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Topic"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "candidate",
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "label",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Label"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EvalCase"
+                  },
+                  "title": "Response List Eval Cases",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Feedback-derived eval case candidates",
+        "tags": [
+          "Admin: quality & evals"
+        ]
+      }
+    },
+    "/api/v1/admin/eval-cases/{case_id}": {
+      "put": {
+        "description": "Approved cases are appended to evals/datasets by the quality worker (export-cases).",
+        "operationId": "update_eval_case",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "title": "Case Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvalCaseUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalCaseStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Approve or reject an eval case",
+        "tags": [
+          "Admin: quality & evals"
+        ]
+      }
+    },
+    "/api/v1/admin/experiments": {
+      "get": {
+        "operationId": "experiments",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "topic",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Topic"
+            }
+          },
+          {
+            "in": "query",
+            "name": "window",
+            "required": false,
+            "schema": {
+              "default": "7d",
+              "enum": [
+                "1h",
+                "24h",
+                "7d",
+                "30d"
+              ],
+              "title": "Window",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExperimentArm"
+                  },
+                  "title": "Response Experiments",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Prompt A/B results per variant",
+        "tags": [
+          "Admin: topics & experiments"
+        ]
+      }
+    },
+    "/api/v1/admin/metrics/models": {
+      "get": {
+        "description": "Per-model performance: volume, latency percentiles, error/fallback rate, cache share, cost.",
+        "operationId": "model_performance",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "window",
+            "required": false,
+            "schema": {
+              "default": "24h",
+              "enum": [
+                "1h",
+                "24h",
+                "7d",
+                "30d"
+              ],
+              "title": "Window",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModelPerformance"
+                  },
+                  "title": "Response Model Performance",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Per-model performance",
+        "tags": [
+          "Admin: models & routing"
+        ]
+      }
+    },
+    "/api/v1/admin/metrics/routing": {
+      "get": {
+        "description": "How tiers are being chosen (task / tier / classifier / judge / default) per topic.",
+        "operationId": "routing_stats",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "window",
+            "required": false,
+            "schema": {
+              "default": "24h",
+              "enum": [
+                "1h",
+                "24h",
+                "7d",
+                "30d"
+              ],
+              "title": "Window",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RoutingStat"
+                  },
+                  "title": "Response Routing Stats",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "How model tiers are being chosen",
+        "tags": [
+          "Admin: models & routing"
+        ]
+      }
+    },
+    "/api/v1/admin/metrics/topics": {
+      "get": {
+        "description": "Per-topic outcomes: success rate, latency, cost, cache share, feedback, online judge score.",
+        "operationId": "topic_quality",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "window",
+            "required": false,
+            "schema": {
+              "default": "7d",
+              "enum": [
+                "1h",
+                "24h",
+                "7d",
+                "30d"
+              ],
+              "title": "Window",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TopicPerformance"
+                  },
+                  "title": "Response Topic Quality",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Per-topic outcomes",
+        "tags": [
+          "Admin: topics & experiments"
+        ]
+      }
+    },
+    "/api/v1/admin/quality": {
+      "get": {
+        "operationId": "quality",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "topic",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Topic"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TopicQuality"
+                  },
+                  "title": "Response Quality",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Latest offline evals, online judge scores and drift per topic",
+        "tags": [
+          "Admin: quality & evals"
+        ]
+      }
+    },
+    "/api/v1/admin/runs": {
+      "get": {
+        "operationId": "recent_runs",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "topic",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Topic"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminRun"
+                  },
+                  "title": "Response Recent Runs",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Recent runs across all users",
+        "tags": [
+          "Admin: accounts & runs"
+        ]
+      }
+    },
+    "/api/v1/admin/runs/{request_id}/calls": {
+      "get": {
+        "description": "Every LLM attempt in one run: which tier/model, why, cost, latency, cache/canary.",
+        "operationId": "run_calls",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "title": "Request Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LlmCall"
+                  },
+                  "title": "Response Run Calls",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Every LLM call of one run",
+        "tags": [
+          "Admin: accounts & runs"
+        ]
+      }
+    },
+    "/api/v1/admin/usage/topics": {
+      "get": {
+        "operationId": "usage_by_topic",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 366,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopicUsageReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Tokens and cost per topic across all users",
+        "tags": [
+          "Admin: usage & billing"
+        ]
+      }
+    },
+    "/api/v1/admin/usage/users": {
+      "get": {
+        "operationId": "usage_top_users",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 366,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UserUsage"
+                  },
+                  "title": "Response Usage Top Users",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Top users by cost, with per-topic breakdown",
+        "tags": [
+          "Admin: usage & billing"
+        ]
+      }
+    },
+    "/api/v1/admin/usage/users/{user_id}": {
+      "get": {
+        "operationId": "usage_for_user",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 366,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserUsageDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "One user's usage per topic (+ daily series)",
+        "tags": [
+          "Admin: usage & billing"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/disable": {
+      "post": {
+        "operationId": "disable_user",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Disable a user and revoke their sessions",
+        "tags": [
+          "Admin: accounts & runs"
+        ]
+      }
+    },
+    "/api/v1/admin/users/{user_id}/plan": {
+      "put": {
+        "description": "Integration point for a billing provider webhook (Stripe etc.).",
+        "operationId": "set_plan",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanChanged"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad request (e.g. unknown topic, malformed input)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Change a user's plan",
+        "tags": [
+          "Admin: accounts & runs"
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or daily quota reached (codes RATE_LIMITED / QUOTA_EXCEEDED); see the Retry-After header"
+          }
+        },
+        "summary": "Log in",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "summary": "Log out (revoke the session)",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/me": {
+      "delete": {
+        "operationId": "erase_me",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EraseBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or daily quota reached (codes RATE_LIMITED / QUOTA_EXCEEDED); see the Retry-After header"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Permanently delete my account and personal data",
+        "tags": [
+          "Account"
+        ]
+      },
+      "get": {
+        "operationId": "me",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or daily quota reached (codes RATE_LIMITED / QUOTA_EXCEEDED); see the Retry-After header"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "My account and plan",
+        "tags": [
+          "Account"
+        ]
+      }
+    },
+    "/api/v1/auth/me/export": {
+      "get": {
+        "operationId": "export_me",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountExport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or daily quota reached (codes RATE_LIMITED / QUOTA_EXCEEDED); see the Retry-After header"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Download all my data (account, runs, usage)",
+        "tags": [
+          "Account"
+        ]
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "description": "Refresh tokens are single-use. Re-using an old one revokes the whole session (theft detection).",
+        "operationId": "refresh_tokens",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "summary": "Get a new token pair",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "description": "New accounts start on the signup plan from config/plans.yaml. Returns tokens right away.",
+        "operationId": "register",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Credentials"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict (e.g. email already registered)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or daily quota reached (codes RATE_LIMITED / QUOTA_EXCEEDED); see the Retry-After header"
+          }
+        },
+        "summary": "Create an account",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/chat": {
+      "post": {
+        "description": "Picks the topic (keywords first, a cheap LLM classification only when unclear), checks\nthe plan includes it, then runs that topic's agent. Same result as calling the topic directly.",
+        "operationId": "chat",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunResponse"
+                }
+              },
+              "text/event-stream": {
+                "example": "event: routed\ndata: {\"topic\": \"product_finder\", \"confidence\": 0.92, \"method\": \"keywords\"}\n\nevent: status\ndata: {\"type\":\"status\",\"content\":\"Parsing the question\",\"data\":{}}\n\nevent: token\ndata: {\"type\":\"token\",\"content\":\"**Answer** ...\",\"data\":{}}\n\nevent: usage\ndata: {\"type\":\"usage\",\"content\":\"\",\"data\":{\"total_tokens\":9087,\"cost_usd\":0.0035}}\n\nevent: done\ndata: {\"type\":\"done\",\"content\":\"\",\"data\":{\"status\":\"success\",\"request_id\":\"...\"}}\n\n",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "SSE stream (stream=true) or the full result incl. `routing` (stream=false)"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad request (e.g. unknown topic, malformed input)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or daily quota reached (codes RATE_LIMITED / QUOTA_EXCEEDED); see the Retry-After header"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "An upstream dependency (web source, model provider) failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Temporarily unavailable (topic disabled, model gateway down, ...)"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Ask anything (auto-routed to the right assistant)",
+        "tags": [
+          "Chat"
+        ]
+      }
+    },
+    "/api/v1/dashboard": {
+      "get": {
+        "description": "Totals, change vs the previous month, per-topic breakdown, a gap-free daily series,\nrun stats, recent runs and (for the current month) live quota status. Only your own data.",
+        "operationId": "my_dashboard",
+        "parameters": [
+          {
+            "description": "YYYY-MM (UTC). Omit for the current month. Options come from the /months endpoint.",
+            "in": "query",
+            "name": "month",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "YYYY-MM (UTC). Omit for the current month. Options come from the /months endpoint.",
+              "examples": [
+                "2026-11"
+              ],
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDashboard"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad request (e.g. unknown topic, malformed input)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or daily quota reached (codes RATE_LIMITED / QUOTA_EXCEEDED); see the Retry-After header"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "My usage dashboard for one month",
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
+    "/api/v1/dashboard/months": {
+      "get": {
+        "operationId": "my_months",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonthsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or daily quota reached (codes RATE_LIMITED / QUOTA_EXCEEDED); see the Retry-After header"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Months for my month picker",
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
+    "/api/v1/topics": {
+      "get": {
+        "operationId": "list_topics",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TopicSummary"
+                  },
+                  "title": "Response List Topics",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or daily quota reached (codes RATE_LIMITED / QUOTA_EXCEEDED); see the Retry-After header"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Available assistants and whether my plan includes them",
+        "tags": [
+          "Topics"
+        ]
+      }
+    },
+    "/api/v1/usage/me": {
+      "get": {
+        "operationId": "my_usage",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyUsage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or daily quota reached (codes RATE_LIMITED / QUOTA_EXCEEDED); see the Retry-After header"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "My tokens and cost per topic: today, month to date, last 30 days",
+        "tags": [
+          "Usage"
+        ]
+      }
+    },
+    "/api/v1/usage/me/daily": {
+      "get": {
+        "operationId": "my_daily",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 366,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "topic",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Topic"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DailyUsage"
+                  },
+                  "title": "Response My Daily",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or daily quota reached (codes RATE_LIMITED / QUOTA_EXCEEDED); see the Retry-After header"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "My daily usage time series per topic (for charts)",
+        "tags": [
+          "Usage"
+        ]
+      }
+    },
+    "/api/v1/usage/me/runs": {
+      "get": {
+        "operationId": "my_runs",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "topic",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Topic"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RunSummary"
+                  },
+                  "title": "Response My Runs",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or daily quota reached (codes RATE_LIMITED / QUOTA_EXCEEDED); see the Retry-After header"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "My recent runs with their token and cost usage",
+        "tags": [
+          "Usage"
+        ]
+      }
+    }
+  },
+  "tags": [
+    {
+      "description": "Register, log in, refresh and revoke tokens.",
+      "name": "Auth"
+    },
+    {
+      "description": "My account, data export and deletion (GDPR).",
+      "name": "Account"
+    },
+    {
+      "description": "One entry point for every assistant: the question is routed to the right topic.",
+      "name": "Chat"
+    },
+    {
+      "description": "The assistants, what they do, and which ones my plan includes.",
+      "name": "Topics"
+    },
+    {
+      "description": "My tokens and cost, per topic (live today, plus history).",
+      "name": "Usage"
+    },
+    {
+      "description": "My monthly usage dashboard: pick a month (GET /dashboard/months), then one call returns everything the screen needs. Own data only.",
+      "name": "Dashboard"
+    },
+    {
+      "description": "Platform-wide monthly dashboard, and any user's dashboard. Admin only.",
+      "name": "Admin: dashboard"
+    },
+    {
+      "description": "Spend per topic and per user. Admin only.",
+      "name": "Admin: usage & billing"
+    },
+    {
+      "description": "Model performance, tier routing, canaries. Admin only.",
+      "name": "Admin: models & routing"
+    },
+    {
+      "description": "Topic outcomes and prompt A/B tests. Admin only.",
+      "name": "Admin: topics & experiments"
+    },
+    {
+      "description": "Eval results, online judge scores, drift, eval-case curation. Admin only.",
+      "name": "Admin: quality & evals"
+    },
+    {
+      "description": "Plans, disabling users, run and LLM-call inspection. Admin only.",
+      "name": "Admin: accounts & runs"
+    }
+  ]
+}

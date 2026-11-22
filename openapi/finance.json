@@ -1,0 +1,571 @@
+{
+  "components": {
+    "schemas": {
+      "ErrorDetail": {
+        "properties": {
+          "code": {
+            "description": "Stable machine-readable code, e.g. QUOTA_EXCEEDED",
+            "examples": [
+              "QUOTA_EXCEEDED"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Extra context, e.g. the plan or the field errors",
+            "title": "Details"
+          },
+          "message": {
+            "description": "Human-readable explanation (safe to show to users)",
+            "title": "Message",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Echoed X-Request-ID; quote it when reporting issues",
+            "title": "Request Id"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorDetail",
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "description": "Every non-2xx response from every service has this shape.",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "FeedbackBody": {
+        "properties": {
+          "comment": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What was wrong or right (feeds the eval datasets)",
+            "title": "Comment"
+          },
+          "score": {
+            "description": "-1 bad, 0 neutral, 1 good",
+            "enum": [
+              -1,
+              0,
+              1
+            ],
+            "title": "Score",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "score"
+        ],
+        "title": "FeedbackBody",
+        "type": "object"
+      },
+      "RunBody": {
+        "properties": {
+          "prompt": {
+            "description": "The user's question",
+            "examples": [
+              "Tesla Model 3 2024 vs diesel in France, 15000 km/year"
+            ],
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Prompt",
+            "type": "string"
+          },
+          "session_id": {
+            "default": "default",
+            "description": "Conversation id: runs with the same id share memory (follow-ups)",
+            "pattern": "^[A-Za-z0-9\\-_]{1,64}$",
+            "title": "Session Id",
+            "type": "string"
+          },
+          "stream": {
+            "default": true,
+            "description": "true: Server-Sent Events stream; false: one JSON document (RunResponse)",
+            "title": "Stream",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "prompt"
+        ],
+        "title": "RunBody",
+        "type": "object"
+      },
+      "RunError": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "RunError",
+        "type": "object"
+      },
+      "RunResponse": {
+        "description": "Result of one agent run (stream=false). With stream=true the same information\narrives as SSE events: status, tool_call, tool_result, artifact, token, error, usage, done.",
+        "properties": {
+          "answer": {
+            "default": "",
+            "description": "Markdown answer",
+            "title": "Answer",
+            "type": "string"
+          },
+          "artifacts": {
+            "additionalProperties": true,
+            "description": "Structured data behind the answer (sources, numbers)",
+            "title": "Artifacts",
+            "type": "object"
+          },
+          "cache_hit": {
+            "default": false,
+            "description": "Answered from the response cache (identical recent question)",
+            "title": "Cache Hit",
+            "type": "boolean"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/RunError"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "routing": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Only via /chat: which topic was chosen and how",
+            "title": "Routing"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "success",
+              "error",
+              "timeout",
+              "cancelled"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "steps": {
+            "description": "What the agent did, in order",
+            "items": {
+              "type": "string"
+            },
+            "title": "Steps",
+            "type": "array"
+          },
+          "topic": {
+            "title": "Topic",
+            "type": "string"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/RunUsage"
+          }
+        },
+        "required": [
+          "request_id",
+          "session_id",
+          "topic",
+          "status"
+        ],
+        "title": "RunResponse",
+        "type": "object"
+      },
+      "RunUsage": {
+        "properties": {
+          "completion_tokens": {
+            "default": 0,
+            "title": "Completion Tokens",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "default": 0.0,
+            "description": "Provider cost of every LLM call this run made",
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "llm_calls": {
+            "default": 0,
+            "title": "Llm Calls",
+            "type": "integer"
+          },
+          "prompt_tokens": {
+            "default": 0,
+            "title": "Prompt Tokens",
+            "type": "integer"
+          },
+          "total_tokens": {
+            "default": 0,
+            "title": "Total Tokens",
+            "type": "integer"
+          }
+        },
+        "title": "RunUsage",
+        "type": "object"
+      },
+      "TopicInfo": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "entitled": {
+            "description": "Whether the caller's plan includes this topic",
+            "title": "Entitled",
+            "type": "boolean"
+          },
+          "framework": {
+            "description": "Agent framework behind this topic (langgraph, crewai, autogen)",
+            "title": "Framework",
+            "type": "string"
+          },
+          "plan": {
+            "title": "Plan",
+            "type": "string"
+          },
+          "topic": {
+            "title": "Topic",
+            "type": "string"
+          }
+        },
+        "required": [
+          "topic",
+          "display_name",
+          "framework",
+          "description",
+          "entitled",
+          "plan"
+        ],
+        "title": "TopicInfo",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "description": "Access token from POST /api/v1/auth/login (or /register). Expires after 15 minutes; use /api/v1/auth/refresh for a new one.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "The **Finance Analyst** assistant (autogen). Log in at the edge API (`POST /api/v1/auth/login`), click **Authorize**, then `POST /api/v1/finance/run`.\n\nStreaming (`stream: true`) returns Server-Sent Events: `status`, `tool_call`, `tool_result`, `artifact`, `token` (the answer), `error`, `usage` (tokens + cost), `done`. The same API is available over WebSocket at `/api/v1/finance/ws` (first message: `{\"type\": \"auth\", \"token\": \"...\"}`).",
+    "title": "Finance Analyst API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/finance/info": {
+      "get": {
+        "operationId": "info",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopicInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or daily quota reached (codes RATE_LIMITED / QUOTA_EXCEEDED); see the Retry-After header"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "What this assistant does, and whether my plan includes it",
+        "tags": [
+          "Finance Analyst"
+        ]
+      }
+    },
+    "/api/v1/finance/run": {
+      "post": {
+        "description": "Runs the topic agent on one question. Checks the plan, rate limit and daily\ntoken/cost quota first; tokens and cost of every LLM call are recorded per topic.",
+        "operationId": "run",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunResponse"
+                }
+              },
+              "text/event-stream": {
+                "example": "event: status\ndata: {\"type\":\"status\",\"content\":\"Parsing the question\",\"data\":{}}\n\nevent: token\ndata: {\"type\":\"token\",\"content\":\"**Answer** ...\",\"data\":{}}\n\nevent: usage\ndata: {\"type\":\"usage\",\"content\":\"\",\"data\":{\"total_tokens\":9087,\"cost_usd\":0.0035}}\n\nevent: done\ndata: {\"type\":\"done\",\"content\":\"\",\"data\":{\"status\":\"success\",\"request_id\":\"...\"}}\n\n",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "SSE stream of agent events (stream=true) or the full result (stream=false)"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad request (e.g. unknown topic, malformed input)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request body too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or daily quota reached (codes RATE_LIMITED / QUOTA_EXCEEDED); see the Retry-After header"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Temporarily unavailable (topic disabled, model gateway down, ...)"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Ask the agent",
+        "tags": [
+          "Finance Analyst"
+        ]
+      }
+    },
+    "/api/v1/finance/runs/{request_id}/feedback": {
+      "post": {
+        "operationId": "feedback",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "title": "Request Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or daily quota reached (codes RATE_LIMITED / QUOTA_EXCEEDED); see the Retry-After header"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Rate an answer",
+        "tags": [
+          "Finance Analyst"
+        ]
+      }
+    }
+  },
+  "tags": [
+    {
+      "description": "Market data analysis: quotes, fundamentals, historical risk/return and portfolio metrics, reviewed by a compliance agent. Educational, not advice. Framework: autogen.",
+      "name": "Finance Analyst"
+    }
+  ]
+}
