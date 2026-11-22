@@ -54,3 +54,6 @@ htmlcov/
 
 # Infisical CLI project link (local tooling only; secrets reach k8s via External Secrets)
 .infisical.yaml
+
+# CI test artefacts
+coverage.xml

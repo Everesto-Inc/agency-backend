@@ -21,9 +21,10 @@ class RetentionRepository:
         self._chunk = chunk
 
     async def _chunked(self, sql: str, days: int) -> int:
+        """Repeat a statement ending in `LIMIT %s` until a pass touches fewer than chunk rows."""
         total = 0
         while True:
-            n = await self._db.execute(f"{sql} LIMIT {self._chunk}", (days,))
+            n = await self._db.execute(sql, (days, self._chunk))
             total += n
             if n < self._chunk:
                 return total
@@ -33,25 +34,27 @@ class RetentionRepository:
             "agent_runs_text": await self._chunked(
                 """UPDATE agent_runs SET prompt = NULL, answer = NULL, feedback_comment = NULL
                    WHERE created_at < UTC_TIMESTAMP(6) - INTERVAL %s DAY
-                     AND (prompt IS NOT NULL OR answer IS NOT NULL OR feedback_comment IS NOT NULL)""",
+                     AND (prompt IS NOT NULL OR answer IS NOT NULL OR feedback_comment IS NOT NULL)
+                   LIMIT %s""",
                 cfg.run_text_days,
             ),
             "eval_cases_text": await self._chunked(
                 """DELETE FROM eval_cases WHERE status IN ('candidate', 'rejected')
-                   AND created_at < UTC_TIMESTAMP(6) - INTERVAL %s DAY""",
+                   AND created_at < UTC_TIMESTAMP(6) - INTERVAL %s DAY LIMIT %s""",
                 cfg.run_text_days,
             ),
             "llm_calls": await self._chunked(
-                "DELETE FROM llm_calls WHERE created_at < UTC_TIMESTAMP(6) - INTERVAL %s DAY", cfg.llm_calls_days
+                "DELETE FROM llm_calls WHERE created_at < UTC_TIMESTAMP(6) - INTERVAL %s DAY LIMIT %s", cfg.llm_calls_days
             ),
             "eval_results": await self._chunked(
-                "DELETE FROM eval_results WHERE created_at < UTC_TIMESTAMP(6) - INTERVAL %s DAY",
+                "DELETE FROM eval_results WHERE created_at < UTC_TIMESTAMP(6) - INTERVAL %s DAY LIMIT %s",
                 cfg.eval_results_days,
             ),
             "refresh_tokens": await self._chunked(
                 """DELETE FROM refresh_tokens
                    WHERE (revoked_at IS NOT NULL OR expires_at < UTC_TIMESTAMP(6))
-                     AND created_at < UTC_TIMESTAMP(6) - INTERVAL %s DAY""",
+                     AND created_at < UTC_TIMESTAMP(6) - INTERVAL %s DAY
+                   LIMIT %s""",
                 cfg.expired_refresh_tokens_days,
             ),
         }

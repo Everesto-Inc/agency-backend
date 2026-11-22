@@ -7,7 +7,7 @@ from typing import Any
 
 import pymysql
 
-from agency_platform.db import Database, placeholders
+from agency_platform.db import Database
 
 _ER_DUP_ENTRY = 1062
 
@@ -169,6 +169,9 @@ class EvalRepository:
     async def mark_exported(self, ids: Sequence[int]) -> int:
         if not ids:
             return 0
+        # Static SQL: the id list is one JSON parameter, unpacked by JSON_TABLE (no dynamic IN list).
         return await self._db.execute(
-            f"UPDATE eval_cases SET status = 'exported' WHERE id IN ({placeholders(len(ids))})", tuple(ids)
+            """UPDATE eval_cases SET status = 'exported'
+               WHERE id IN (SELECT j.id FROM JSON_TABLE(%s, '$[*]' COLUMNS (id BIGINT PATH '$')) AS j)""",
+            ([int(i) for i in ids],),
         )

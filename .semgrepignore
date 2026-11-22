@@ -1,0 +1,4 @@
+# Semgrep (Loop CI) ignores. Keep this list short and justified.
+:include .gitignore
+# Inactive pre-platform pipeline kept for reference (not under .github/workflows).
+ci/legacy-ci-cd.yaml
