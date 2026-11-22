@@ -1,0 +1,21 @@
+# Managed by Backstage (imported into DevOps Space orchid). The space is decided by the platform registry, not by this file.
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: agency-backend
+  description: "Application agency-backend of space orchid"
+  annotations:
+    github.com/project-slug: Everesto-Inc/agency-backend
+    everesto.live/ci-workflow: ci.yml
+    everesto.live/image: ghcr.io/everesto-inc/agency-backend
+    everesto.live/loop: v1.1.2
+    everesto.live/gitleaks: "on"
+    everesto.live/trivy: "report"
+    everesto.live/semgrep: "on"
+    sonarqube.org/project-key: agency-backend
+    everesto.live/dependabot: "on"
+spec:
+  type: service
+  lifecycle: experimental
+  owner: orchid
+  system: orchid
