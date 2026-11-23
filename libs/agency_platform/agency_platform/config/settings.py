@@ -50,6 +50,9 @@ class PlatformSettings(BaseSettings):
     db_pool_max_size: int = 10
     db_statement_timeout_ms: int = 30_000
     redis_url: SecretStr = SecretStr("redis://localhost:6379/0")
+    # Shared platform Redis (Backstage "Redis" switch): the app's ACL user may only touch keys
+    # starting with this prefix, e.g. "orchid-agency-backend:". Empty locally.
+    redis_key_prefix: str = ""
 
     # User auth. Prod uses asymmetric keys: only the edge gateway holds the
     # private key (can mint tokens); every other service only verifies.

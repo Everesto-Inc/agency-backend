@@ -43,6 +43,7 @@ Browse it: [redis.everesto.live](https://redis.everesto.live) (GitHub login, pla
 
 !!! note "Shared Redis"
     In the platform Redis each app gets its own user, limited to keys starting with its `REDIS_KEY_PREFIX`
-    (Backstage → Create deployment → Redis). The agency's keys don't carry that prefix yet — needed before
-    it uses the shared Redis.
+    (Backstage → Create deployment → Redis). Every key is built with `rkey()` (`agency_platform/cache.py`),
+    which puts `REDIS_KEY_PREFIX` in front (empty locally) — e.g. `orchid-agency-backend:usage:tok:…`.
+    New Redis code must build its keys with `rkey()` too, or the shared Redis answers `NOPERM`.
 

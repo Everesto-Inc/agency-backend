@@ -11,6 +11,7 @@ from typing import Any
 
 from redis.asyncio import Redis
 
+from agency_platform.cache import rkey
 from model_gateway.catalog import LLMCacheConfig
 
 
@@ -20,7 +21,7 @@ def cacheable(params: dict[str, Any], cfg: LLMCacheConfig) -> bool:
 
 def cache_key(model_id: str, messages: list[dict[str, Any]], params: dict[str, Any]) -> str:
     material = json.dumps({"m": model_id, "msg": messages, "p": params}, sort_keys=True, default=str)
-    return "llmcache:" + hashlib.sha256(material.encode()).hexdigest()
+    return rkey("llmcache:" + hashlib.sha256(material.encode()).hexdigest())
 
 
 class LLMCache:

@@ -16,6 +16,7 @@ import pymysql
 from redis.asyncio import Redis
 
 from agency_platform.auth.passwords import hash_password, verify_password
+from agency_platform.cache import rkey
 from agency_platform.config.registry import plans
 from agency_platform.db import Database
 from agency_platform.errors import ConflictError, UnauthorizedError
@@ -152,7 +153,7 @@ class AccountDirectory:
 
     @staticmethod
     def _key(user_id: str) -> str:
-        return f"acct:{user_id}"
+        return rkey(f"acct:{user_id}")
 
     async def get(self, user_id: str) -> Account | None:
         cached = await self._redis.get(self._key(user_id))

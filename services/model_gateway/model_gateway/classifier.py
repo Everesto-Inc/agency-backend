@@ -16,6 +16,7 @@ from typing import Any
 
 from redis.asyncio import Redis
 
+from agency_platform.cache import rkey
 from agency_platform.llm.tiers import Tier
 from model_gateway.catalog import ClassifierConfig, RoutingConfig
 
@@ -98,7 +99,7 @@ class ComplexityClassifier:
 
         if cfg.llm_judge.enabled and judge is not None:
             text = "\n".join(f"{m.get('role')}: {message_text(m)}" for m in messages[-4:])[-cfg.llm_judge.max_input_chars :]
-            cache_key = "route:judge:" + hashlib.sha256(text.encode()).hexdigest()[:40]
+            cache_key = rkey("route:judge:" + hashlib.sha256(text.encode()).hexdigest()[:40])
             if self._redis is not None and (cached := await self._redis.get(cache_key)):
                 return Classification(Tier(cached), "judge", f"cached judge verdict (score {s})", s)
             verdict = await judge(text)

@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 
 from redis.asyncio import Redis
 
+from agency_platform.cache import rkey
 from agency_platform.config.schemas import PlanConfig
 from agency_platform.errors import QuotaExceededError, RateLimitedError
 
@@ -65,23 +66,23 @@ class UsageMeter:
     # ---- keys -----------------------------------------------------------
     @staticmethod
     def _tokens_key(user_id: str) -> str:
-        return f"usage:tok:{user_id}:{_today()}"
+        return rkey(f"usage:tok:{user_id}:{_today()}")
 
     @staticmethod
     def _cost_key(user_id: str) -> str:
-        return f"usage:cost:{user_id}:{_today()}"
+        return rkey(f"usage:cost:{user_id}:{_today()}")
 
     @staticmethod
     def _run_key(request_id: str) -> str:
-        return f"usage:run:{request_id}"
+        return rkey(f"usage:run:{request_id}")
 
     @staticmethod
     def _topic_req_key(user_id: str, topic: str) -> str:
-        return f"usage:req:{topic}:{user_id}:{_today()}"
+        return rkey(f"usage:req:{topic}:{user_id}:{_today()}")
 
     @staticmethod
     def _per_topic_key(user_id: str) -> str:
-        return f"usage:topic:{user_id}:{_today()}"
+        return rkey(f"usage:topic:{user_id}:{_today()}")
 
     # ---- writes (model gateway) ----------------------------------------------
     async def record_llm_usage(
@@ -201,7 +202,7 @@ class RateLimiter:
         if limit <= 0:
             raise RateLimitedError("Requests are not allowed on this plan", retry_after_s=window_s)
         bucket = int(datetime.now(UTC).timestamp()) // window_s
-        full_key = f"rl:{key}:{bucket}"
+        full_key = rkey(f"rl:{key}:{bucket}")
         async with self._r.pipeline(transaction=True) as p:
             p.incr(full_key)
             p.expire(full_key, window_s + 1)
@@ -211,4 +212,4 @@ class RateLimiter:
 
     async def reset(self, key: str, window_s: int) -> None:
         bucket = int(datetime.now(UTC).timestamp()) // window_s
-        await self._r.delete(f"rl:{key}:{bucket}")
+        await self._r.delete(rkey(f"rl:{key}:{bucket}"))

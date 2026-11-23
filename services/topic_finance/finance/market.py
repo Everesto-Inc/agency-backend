@@ -11,6 +11,7 @@ from typing import Any, Protocol
 
 from redis.asyncio import Redis
 
+from agency_platform.cache import rkey
 from agency_platform.errors import BadRequestError, UpstreamError
 from finance.params import params
 
@@ -65,7 +66,7 @@ class YFinanceMarketData:
             return {"symbol": symbol, "price": round(float(price), 4), "currency": fi.get("currency"),
                     "previous_close": fi.get("previousClose"), "as_of": "latest available"}
 
-        return await self._cached(f"mkt:q:{symbol}", params().market_data.quote_cache_ttl_s, load)
+        return await self._cached(rkey(f"mkt:q:{symbol}"), params().market_data.quote_cache_ttl_s, load)
 
     async def fundamentals(self, symbol: str) -> dict[str, Any]:
         import yfinance as yf
@@ -80,7 +81,7 @@ class YFinanceMarketData:
                 raise ValueError("no fundamentals")
             return out
 
-        return await self._cached(f"mkt:f:{symbol}", params().market_data.history_cache_ttl_s, load)
+        return await self._cached(rkey(f"mkt:f:{symbol}"), params().market_data.history_cache_ttl_s, load)
 
     async def closes(self, symbol: str, period: str) -> list[float]:
         import yfinance as yf
@@ -92,4 +93,4 @@ class YFinanceMarketData:
                 raise ValueError("no history")
             return values
 
-        return await self._cached(f"mkt:h:{symbol}:{period}", params().market_data.history_cache_ttl_s, load)
+        return await self._cached(rkey(f"mkt:h:{symbol}:{period}"), params().market_data.history_cache_ttl_s, load)

@@ -17,6 +17,8 @@ from typing import Any
 
 from redis.asyncio import Redis
 
+from agency_platform.cache import rkey
+
 _WS = re.compile(r"\s+")
 
 
@@ -37,7 +39,7 @@ class ResponseCache:
     @staticmethod
     def key(topic: str, fingerprint: str, tier_ceiling: str, prompt: str) -> str:
         raw = "\x1f".join([topic, fingerprint, str(tier_ceiling), normalise_question(prompt)])
-        return f"rcache:{topic}:{hashlib.sha256(raw.encode()).hexdigest()}"
+        return rkey(f"rcache:{topic}:{hashlib.sha256(raw.encode()).hexdigest()}")
 
     async def get(self, key: str) -> CachedAnswer | None:
         raw = await self._r.get(key)

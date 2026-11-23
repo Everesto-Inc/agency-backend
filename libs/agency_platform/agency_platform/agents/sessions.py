@@ -7,6 +7,8 @@ import json
 
 from redis.asyncio import Redis
 
+from agency_platform.cache import rkey
+
 _MAX_TURNS = 20
 _TTL_S = 24 * 3600
 
@@ -19,7 +21,7 @@ class SessionStore:
 
     @staticmethod
     def _key(user_id: str, topic: str, session_id: str) -> str:
-        return f"sess:{user_id}:{topic}:{session_id}"
+        return rkey(f"sess:{user_id}:{topic}:{session_id}")
 
     async def history(self, user_id: str, topic: str, session_id: str) -> list[dict[str, str]]:
         items = await self._r.lrange(self._key(user_id, topic, session_id), 0, -1)
@@ -36,6 +38,6 @@ class SessionStore:
     async def forget_user(self, user_id: str) -> int:
         """Delete every session of a user (account erasure)."""
         deleted = 0
-        async for key in self._r.scan_iter(match=f"sess:{user_id}:*", count=500):
+        async for key in self._r.scan_iter(match=rkey(f"sess:{user_id}:*"), count=500):
             deleted += await self._r.delete(key)
         return deleted

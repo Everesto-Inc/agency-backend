@@ -9,6 +9,7 @@ from decimal import Decimal
 import httpx
 from redis.asyncio import Redis
 
+from agency_platform.cache import rkey
 from agency_platform.errors import UpstreamError
 from product_finder.params import params
 
@@ -20,7 +21,7 @@ class FXRates:
 
     async def rates(self, base: str) -> dict[str, float]:
         base = base.upper()
-        key = f"fx:{base}"
+        key = rkey(f"fx:{base}")
         if cached := await self._redis.get(key):
             return json.loads(cached)
         cfg = params().fx
