@@ -34,7 +34,9 @@ jobs:
       sonar-args: >-
         -Dsonar.python.version=3.13
         -Dsonar.python.coverage.reportPaths=libs/*/coverage.xml,services/*/coverage.xml
-        -Dsonar.exclusions=ci/legacy-ci-cd.yaml,evals/reports/**
+        -Dsonar.exclusions=ci/legacy-ci-cd.yaml,evals/reports/**,**/tests/**
+        -Dsonar.tests=.
+        -Dsonar.test.inclusions=**/tests/**
       image: ghcr.io/everesto-inc/agency-edge-gateway
       build-args: |
         SERVICE=edge_gateway
