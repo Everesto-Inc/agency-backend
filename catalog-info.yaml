@@ -107,3 +107,20 @@ spec:
   system: orchid
   definition:
     $text: ./openapi/model-gateway.json
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: agency-backend-gitops
+  description: CD of agency-backend — ArgoCD dev-agency-backend (manual sync), prod via Promote
+  annotations:
+    github.com/project-slug: Everesto-Inc/agency-backend-gitops
+    argocd/app-name: dev-agency-backend
+    everesto.live/namespace: agency
+    everesto.live/redis: orchid-agency-backend
+    backstage.io/techdocs-ref: url:https://github.com/Everesto-Inc/agency-backend-gitops/tree/main
+spec:
+  type: gitops
+  owner: orchid
+  system: orchid
+  dependsOn: [component:default/agency-backend]
