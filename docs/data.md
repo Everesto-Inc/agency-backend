@@ -27,6 +27,8 @@ Rules:
 
 ## Chat memory
 
+The full picture with diagrams: **[Chat memory](memory.md)**.
+
 What an assistant remembers of the current chat: the last messages, word for word (EV / Finance / Product Finder
 read the last 4). **One memory per chat**, shared by every assistant — switching assistant keeps the context.
 
