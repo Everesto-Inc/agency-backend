@@ -28,3 +28,11 @@ fx:
   # A car price found for another market is converted to the local currency (shown next to the original).
   url: https://api.frankfurter.app/latest   # ECB reference rates, no key
   cache_ttl_s: 21600
+
+kb:
+  # Official / open data, loaded weekly by the ev-kb-refresh job (and on first start) — the EV Helper looks here
+  # BEFORE any web search. Electricity: Eurostat (twice a year). Petrol/diesel: EU Weekly Oil Bulletin.
+  # Car specs: Open EV Data (MIT + attribution — credited in answers and in the app).
+  countries: [DE, FR]
+  official_staleness_days: 220
+  use_catalog: true

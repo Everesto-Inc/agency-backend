@@ -37,12 +37,27 @@ class FX(BaseModel):
     cache_ttl_s: int = Field(21600, ge=60)
 
 
+class KnowledgeBase(BaseModel):
+    """Official / open data loaded ahead of time (ev_research.kb) — looked up before any web search."""
+    countries: list[str] = Field(default_factory=lambda: ["DE", "FR"])
+    country_names: dict[str, str] = Field(default_factory=dict, description="code → name in the Oil Bulletin, if it differs")
+    eurostat_url: str = "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/nrg_pc_204"
+    oil_bulletin_url: str = (
+        "https://energy.ec.europa.eu/document/download/264c2d0f-f161-4ea3-a777-78faae59bea0_en"
+        "?filename=Weekly_Oil_Bulletin_Prices_History_maticni_4web.xlsx")
+    open_ev_data_url: str = "https://raw.githubusercontent.com/KilowattApp/open-ev-data/master/data/ev-data.json"
+    official_staleness_days: int = Field(220, ge=1, description="official rows older than this are refetched from "
+                                                                "the web (Eurostat publishes twice a year)")
+    use_catalog: bool = True
+
+
 class EVParams(BaseModel):
     country_data: CountryData
     ev_specs: EVSpecs
     crawl: Crawl
     assumptions: Assumptions
     fx: FX = FX()
+    kb: KnowledgeBase = KnowledgeBase()
 
 
 def settings() -> EVSettings:

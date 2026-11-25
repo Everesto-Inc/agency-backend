@@ -1,4 +1,6 @@
 """TopicAgent adapter: LangGraph events -> platform AgentEvents."""
+import asyncio
+import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -11,9 +13,12 @@ from agency_platform.db import get_db
 from agency_platform.tools.fx import FXRates
 from agency_platform.tools.images import ImageStore
 from agency_platform.tools.objectstore import ObjectStore
+from ev_research import kb, repository
 from ev_research.graph import build_graph
 from ev_research.params import params
 from ev_research.sources import CrawlerPool, FactSources, build_search
+
+logger = logging.getLogger(__name__)
 
 _STATUS = {
     "parse_intent": "Understood the question (vehicles, country, comparison)",
@@ -42,6 +47,18 @@ class EVResearchAgent(TopicAgent):
         # pictures in answers: on only when the bucket is configured (S3_*); otherwise EV says it can't show one
         self._images = ImageStore(get_db(), app.state.http, ObjectStore.from_settings(get_settings(), app.state.http))
         self._graph = build_graph()
+        self._kb_task = asyncio.create_task(self._kb_first_load(app.state.http), name="ev-kb-first-load")
+
+    async def _kb_first_load(self, http) -> None:
+        """Empty knowledge base (first deploy) → load it now, in the background; afterwards the weekly job does."""
+        try:
+            status = await repository.kb_status()
+            if status["catalog"] and status["official_prices"]:
+                return
+            cfg = params().kb
+            await kb.refresh(http, cfg, kb.country_names(cfg.countries, cfg.country_names))
+        except Exception:
+            logger.warning("ev knowledge base first load failed", exc_info=True)
 
     async def shutdown(self) -> None:
         await self._crawler.stop()

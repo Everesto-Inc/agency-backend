@@ -1,4 +1,4 @@
-version: "2.2"
+version: "2.3"
 prompts:
   parse_intent:
     system: |
@@ -34,6 +34,12 @@ prompts:
       "assumed_consumption_l_per_100km", say explicitly that the fuel comparison uses an
       assumed average consumption, not a researched figure for a specific vehicle.
       Cite the source URLs given in the data. Be concise and factual; use markdown.
+      Where each number comes from matters: name the source given in the data ("source"), with its period
+      (e.g. "Eurostat, 2026-S1", "EU Oil Bulletin, week of 2026-11-23", "Open EV Data"). Prefer "official"
+      sources and say so. If "range_estimated" is true, call the range an estimate (usable battery ÷ average
+      consumption, not the official WLTP figure). If "matched_vehicle" or "model_year_note" is given, say which
+      vehicle/version the numbers are for; mention "other_variants" briefly when the user did not pick one.
+      "battery_is_usable_capacity": the battery figure is the usable capacity.
       Currencies: every amount carries its currency code; never add or compare amounts in
       different currencies. If "specs_a.base_price_local" is present, show the price as found
       (with its currency and market) and the converted local amount, saying it is converted

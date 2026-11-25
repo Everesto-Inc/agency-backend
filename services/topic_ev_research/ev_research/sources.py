@@ -24,6 +24,7 @@ from agency_platform.security.grounding import number_appears
 from agency_platform.security.guardrails import guardrail
 from agency_platform.security.ssrf import UnsafeURLError, assert_public_url
 from agency_platform.tools.search import WebSearch
+from ev_research import kb
 from ev_research import repository as repo
 from ev_research.params import params, settings
 
@@ -172,8 +173,11 @@ class FactSources:
         raise UpstreamError(f"Could not find verifiable data ({last}; tried {len(urls)} sources)")
 
     async def ev_specs(self, make: str, model: str, year: int, trim: str, ctx: RunContext) -> dict[str, Any]:
+        """Data first: specs verified earlier → Open EV Data catalogue → web search (last resort)."""
         if cached := await repo.get_cached_specs(make, model, year, trim):
             return {**cached, "from_cache": True}
+        if params().kb.use_catalog and (row := kb.match_catalog(await repo.catalog_rows(), make, model, year, trim)):
+            return kb.catalog_specs(row, year)
         query = f"{year} {make} {model} {trim} specifications battery kWh range charging".strip()
         data = await self._first_usable(
             await self._candidate_urls(query),
@@ -196,7 +200,7 @@ class FactSources:
         return {**(await repo.get_cached_specs(make, model, year, trim) or record), "from_cache": False}
 
     async def country_price(self, country_code: str, metric: str, ctx: RunContext) -> dict[str, Any]:
-        if cached := await repo.get_cached_price(country_code, metric):
+        if cached := await repo.get_cached_price(country_code, metric):   # official data (Eurostat, Oil Bulletin) first
             return {**cached, "value": float(cached["value"]), "from_cache": True}
         label = metric.replace("_", " ")
         name = country_name(country_code)

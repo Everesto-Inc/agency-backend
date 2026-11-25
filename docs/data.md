@@ -142,3 +142,40 @@ flowchart LR
 - **Config tests** (`config_tests`, 0012): queued by an admin (≤ 50 cases, cost estimate shown), run by the quality
   worker (CronJob `agency-experiments`, every 2 min) as the eval account: each case live and with the draft, both
   checked and judged by the same judge (never the draft's), progress after each case, cancellable.
+
+
+## EV knowledge base (Germany + France first)
+
+The EV Helper answers from **our own data first** and searches the web only when that can't answer:
+
+```mermaid
+flowchart LR
+  q([🧑 EV question]):::user --> t{{triage}}:::svc --> ev{{EV Helper}}:::svc
+  ev --> c1[(① specs verified earlier<br/>ev_model_specs)]:::db
+  c1 -- missing --> c2[(② Open EV Data catalogue<br/>ev_catalog · ~1,300 EVs)]:::db
+  c2 -- missing --> w1[🌐 ③ web search + read page<br/>numbers checked on the page]:::web
+  ev --> p1[(① official prices<br/>Eurostat · Oil Bulletin)]:::db
+  p1 -- missing / stale --> w2[🌐 ② web search]:::web
+  job[[⏱️ ev-kb-refresh<br/>weekly + first start]]:::job --> c2
+  job --> p1
+  classDef user fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px
+  classDef svc fill:#dbeafe,stroke:#2563eb,color:#1e3a8a,stroke-width:2px
+  classDef db fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:2px
+  classDef web fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:2px
+  classDef job fill:#ede9fe,stroke:#7c3aed,color:#4c1d95,stroke-width:2px
+```
+
+| Data | Source | Refresh | Table |
+|---|---|---|---|
+| Household electricity price, all taxes | **Eurostat** `nrg_pc_204` (2,500–4,999 kWh/year band) | twice a year (job weekly) | `country_level_info` (`official = 1`) |
+| Petrol 95 + diesel price, all taxes | **EU Weekly Oil Bulletin** | weekly | `country_level_info` (`official = 1`) |
+| EV specs: usable battery, average consumption, AC/DC power, charging curve | **Open EV Data** — MIT + attribution (credited in every answer that uses it) | weekly | `ev_catalog` |
+
+- Countries: `config/agents/ev_research.yaml → kb.countries` (DE, FR). Both official sources cover the whole EU —
+  adding a country = adding its code.
+- **Range from the catalogue is an estimate** (usable battery ÷ average consumption, not WLTP) and the answer says so;
+  the closest model year and the other versions are named.
+- A source that fails keeps its last good data; official rows stay valid 220 days (`kb.official_staleness_days`),
+  crawled ones 30.
+- Not covered yet: car purchase prices, incentives, public charging prices, real consumption of petrol/diesel
+  comparison cars (a disclosed 7 L/100 km assumption until then).
