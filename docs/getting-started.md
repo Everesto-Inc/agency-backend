@@ -62,6 +62,7 @@ Activate another account (admin): **Admin → PUT /api/v1/admin/users/{user_id}/
 Accounts waiting for activation: **GET /api/v1/admin/users?plan=none**. Forgotten password: an admin sets a new one
 (**PUT /api/v1/admin/users/{user_id}/password**, or CLI `set-password <email>`); users change their own with
 **PUT /api/v1/auth/me/password**. No email is ever sent.
+Details and the admin mechanism in the cluster: [Accounts & admins](accounts.md).
 
 ## 5. Useful commands
 
