@@ -99,11 +99,17 @@ async def test_successful_run_records_usage_session_and_quota(redis):
     runs = FakeRuns()
     runner = make_runner(ScriptedAgent(), redis, runs)
     meter = UsageMeter(redis)
-    await meter.record_llm_usage(user_id=UID, topic="ev_research", request_id="req-ok-000001", prompt_tokens=7, completion_tokens=3, cost_usd=0.001)
+    await meter.record_llm_usage(user_id=UID, topic="ev_research", request_id="req-ok-000001", prompt_tokens=7, completion_tokens=3, cost_usd=0.001,
+                                 model="gemini-2.5-flash")
+    await meter.record_llm_usage(user_id=UID, topic="ev_research", request_id="req-ok-000001", prompt_tokens=0, completion_tokens=0, cost_usd=0,
+                                 model="gemini-2.5-flash-lite")
+    await meter.record_llm_usage(user_id=UID, topic="ev_research", request_id="req-ok-000001", prompt_tokens=0, completion_tokens=0, cost_usd=0,
+                                 model="gemini-2.5-flash")
     events = await collect(runner, RunRequest(user(), "q", "s1", "req-ok-000001"))
     types = [e.type for e in events]
     assert types == ["status", "token", "usage", "done"]
     assert events[2].data["total_tokens"] == 10
+    assert events[2].data["models"] == [{"model": "gemini-2.5-flash", "calls": 2}, {"model": "gemini-2.5-flash-lite", "calls": 1}]
     assert events[3].data["status"] == "success"
     assert [c[0] for c in runs.calls] == ["start", "chat_runs", "finish", "count_daily_run"]
     assert runs.calls[3][1] == {"user_id": UID, "topic": "ev_research", "success": True, "cached": False}

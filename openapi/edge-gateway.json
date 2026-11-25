@@ -524,6 +524,14 @@
             "title": "Created At",
             "type": "string"
           },
+          "models": {
+            "description": "Models that answered (from the LLM call ledger)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Models",
+            "type": "array"
+          },
           "prompt": {
             "anyOf": [
               {

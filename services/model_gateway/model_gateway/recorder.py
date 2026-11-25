@@ -115,6 +115,7 @@ class CallRecorder:
                     prompt_tokens=rec.prompt_tokens,
                     completion_tokens=rec.completion_tokens,
                     cost_usd=rec.cost_usd,
+                    model=rec.model,
                 )
         try:
             self._queue.put_nowait(rec)

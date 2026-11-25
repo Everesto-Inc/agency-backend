@@ -39,7 +39,8 @@ async def get_conversation(conversation_id: ConversationId, user: CurrentUser) -
     conv = await repo.get(user.id, conversation_id)
     if conv is None:
         raise NotFoundError("Conversation not found")
-    messages = [ConversationMessage(**{**m, "cost_usd": float(m["cost_usd"] or 0), "total_tokens": int(m["total_tokens"] or 0)})
+    messages = [ConversationMessage(**{**m, "cost_usd": float(m["cost_usd"] or 0), "total_tokens": int(m["total_tokens"] or 0),
+                                       "models": [x for x in (m.get("models") or "").split(",") if x]})
                 for m in await repo.messages(user.id, conversation_id)]
     return Conversation(**conv, messages=messages)
 

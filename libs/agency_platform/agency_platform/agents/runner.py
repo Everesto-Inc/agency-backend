@@ -392,4 +392,6 @@ class TopicRunner:
             "total_tokens": usage.total_tokens,
             "cost_usd": round(usage.cost_usd, 6),
             "llm_calls": usage.llm_calls,
+            # which models answered (most calls first) — shown under the answer
+            "models": [{"model": m, "calls": n} for m, n in sorted(usage.models.items(), key=lambda x: (-x[1], x[0]))],
         }

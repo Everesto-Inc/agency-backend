@@ -57,7 +57,9 @@ class ConversationRepository:
         """The questions + answers of a conversation, oldest first (text is null after the retention period)."""
         return await self._db.fetch(
             """SELECT request_id, topic, prompt, answer, status, created_at,
-                      prompt_tokens + completion_tokens AS total_tokens, cost_usd
+                      prompt_tokens + completion_tokens AS total_tokens, cost_usd,
+                      (SELECT GROUP_CONCAT(DISTINCT c.model ORDER BY c.model SEPARATOR ',') FROM llm_calls c
+                        WHERE c.request_id = agent_runs.request_id AND c.status = 'success') AS models
                FROM agent_runs WHERE user_id = %s AND session_id = %s
                ORDER BY created_at LIMIT %s""",
             (user_id, conversation_id, limit),

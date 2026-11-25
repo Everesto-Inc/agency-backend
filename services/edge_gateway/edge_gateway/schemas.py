@@ -457,6 +457,7 @@ class ConversationMessage(BaseModel):
     created_at: datetime
     total_tokens: int
     cost_usd: float
+    models: list[str] = Field(default_factory=list, description="Models that answered (from the LLM call ledger)")
 
 
 class Conversation(ConversationSummary):

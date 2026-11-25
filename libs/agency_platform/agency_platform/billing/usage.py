@@ -13,6 +13,7 @@ Postgres keeps the durable, queryable history (llm_calls, agent_runs); Redis
 holds the hot counters that every request checks.
 """
 from dataclasses import dataclass
+from dataclasses import field as dc_field
 from datetime import UTC, datetime
 
 from redis.asyncio import Redis
@@ -53,6 +54,7 @@ class RunUsage:
     completion_tokens: int = 0
     cost_usd: float = 0.0
     llm_calls: int = 0
+    models: dict[str, int] = dc_field(default_factory=dict)   # model → calls, for "answered by …" under the answer
 
     @property
     def total_tokens(self) -> int:
@@ -86,7 +88,8 @@ class UsageMeter:
 
     # ---- writes (model gateway) ----------------------------------------------
     async def record_llm_usage(
-        self, *, user_id: str, topic: str, request_id: str, prompt_tokens: int, completion_tokens: int, cost_usd: float
+        self, *, user_id: str, topic: str, request_id: str, prompt_tokens: int, completion_tokens: int, cost_usd: float,
+        model: str | None = None,
     ) -> None:
         micro = round(cost_usd * _MICRO)
         run_key = self._run_key(request_id)
@@ -104,6 +107,8 @@ class UsageMeter:
             p.hincrby(run_key, "completion_tokens", completion_tokens)
             p.hincrby(run_key, "cost_micro", micro)
             p.hincrby(run_key, "llm_calls", 1)
+            if model:
+                p.hincrby(run_key, f"model:{model}", 1)
             p.expire(run_key, _RUN_TTL_S)
             await p.execute()
 
@@ -124,6 +129,7 @@ class UsageMeter:
             completion_tokens=int(data.get("completion_tokens", 0)),
             cost_usd=int(data.get("cost_micro", 0)) / _MICRO,
             llm_calls=int(data.get("llm_calls", 0)),
+            models={k.removeprefix("model:"): int(v) for k, v in data.items() if k.startswith("model:")},
         )
 
     async def topic_requests_today(self, user_id: str, topic: str) -> int:

@@ -28,7 +28,7 @@ class Repo:
 
     async def messages(self, user_id, cid, limit=200):
         return [{"request_id": "r1", "topic": "ev_research", "prompt": "Range?", "answer": "570 km", "status": "success",
-                 "created_at": NOW, "total_tokens": 900, "cost_usd": 0.0012}]
+                 "created_at": NOW, "total_tokens": 900, "cost_usd": 0.0012, "models": "gemini-2.5-flash,gemini-2.5-flash-lite"}]
 
     async def update(self, user_id, cid, *, title, pinned):
         if cid not in self.convs:
@@ -73,6 +73,7 @@ async def test_list_get_rename_pin_delete(repo):
 
     conv = await rc.get_conversation("abc", USER)
     assert conv.messages[0].answer == "570 km" and conv.messages[0].cost_usd == pytest.approx(0.0012)
+    assert conv.messages[0].models == ["gemini-2.5-flash", "gemini-2.5-flash-lite"]
 
     renamed = await rc.update_conversation("abc", ConversationUpdate(title="  Ioniq range  ", pinned=True), USER)
     assert renamed.title == "Ioniq range" and renamed.pinned is True
