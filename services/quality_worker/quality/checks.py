@@ -17,6 +17,7 @@ class RunOutput:
     request_id: str | None = None
     artifacts: dict = field(default_factory=dict)
     errors: list[dict] = field(default_factory=list)
+    models: list[str] = field(default_factory=list)   # which models answered (usage event)
 
 
 def run_checks(checks: Checks, out: RunOutput) -> list[str]:

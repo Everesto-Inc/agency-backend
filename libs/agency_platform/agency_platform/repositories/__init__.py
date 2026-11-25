@@ -1,7 +1,9 @@
 """All SQL lives here (plus auth.accounts for identity). Routes, runners and
 jobs call these repositories; none of them embed SQL."""
 from agency_platform.repositories.admin_metrics import AdminMetrics
+from agency_platform.repositories.config_tests import ConfigTestRepository
 from agency_platform.repositories.conversations import ConversationRepository, title_from_prompt
+from agency_platform.repositories.datasets import DatasetRepository
 from agency_platform.repositories.evals import EvalRepository
 from agency_platform.repositories.guardrails import GuardrailRepository
 from agency_platform.repositories.llm_calls import CALL_COLUMNS, LlmCallRepository
@@ -13,7 +15,9 @@ from agency_platform.repositories.usage import UsageRepository
 __all__ = [
     "CALL_COLUMNS",
     "AdminMetrics",
+    "ConfigTestRepository",
     "ConversationRepository",
+    "DatasetRepository",
     "EvalRepository",
     "GuardrailRepository",
     "LlmCallRepository",

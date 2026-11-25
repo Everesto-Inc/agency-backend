@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 import httpx
 
+from agency_platform.config.drafts import HEADER as DRAFT_HEADER
 from agency_platform.config.registry import topics
 from agency_platform.errors import UnauthorizedError
 from agency_platform.llm.call_token import CallClaims, mint_call_token
@@ -47,13 +48,15 @@ class AgencyClient:
     def _auth(token: str) -> dict[str, str]:
         return {"Authorization": f"Bearer {token}"}
 
-    async def run_topic(self, topic: str, prompt: str, timeout_s: float) -> RunOutput:
+    async def run_topic(self, topic: str, prompt: str, timeout_s: float, draft_id: int | None = None) -> RunOutput:
+        """draft_id: run with a config draft (Admin → Experiments) instead of the live config."""
         s = await self.login()
         url = f"{str(topics().topics[topic].service_url).rstrip('/')}/api/v1/{topic}/run"
+        headers = self._auth(s.access_token) | ({DRAFT_HEADER: str(draft_id)} if draft_id else {})
         started = time.perf_counter()
         r = await self._http.post(
             url, json={"prompt": prompt, "session_id": f"eval-{uuid.uuid4().hex[:12]}", "stream": False},
-            headers=self._auth(s.access_token), timeout=timeout_s,
+            headers=headers, timeout=timeout_s,
         )
         latency = time.perf_counter() - started
         if r.status_code != 200:
@@ -65,6 +68,7 @@ class AgencyClient:
             status=data.get("status", "error"), answer=data.get("answer", ""), latency_s=latency,
             cost_usd=float(usage.get("cost_usd", 0)), total_tokens=int(usage.get("total_tokens", 0)),
             request_id=data.get("request_id"), artifacts=data.get("artifacts") or {}, errors=data.get("errors") or [],
+            models=[m["model"] for m in usage.get("models") or [] if isinstance(m, dict) and m.get("model")],
         )
 
     async def gateway(self, request_id: str | None = None) -> ModelGatewayClient:

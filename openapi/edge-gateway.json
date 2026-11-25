@@ -403,6 +403,73 @@
         "title": "ChatBody",
         "type": "object"
       },
+      "Checks": {
+        "description": "Deterministic expectations -- cheap, exact, run before the LLM judge.",
+        "properties": {
+          "expect_refusal": {
+            "default": false,
+            "title": "Expect Refusal",
+            "type": "boolean"
+          },
+          "max_cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Cost Usd"
+          },
+          "max_latency_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Latency S"
+          },
+          "min_judge_score": {
+            "default": 3.5,
+            "title": "Min Judge Score",
+            "type": "number"
+          },
+          "must_contain": {
+            "description": "all must appear (case-insensitive)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Must Contain",
+            "type": "array"
+          },
+          "must_contain_any": {
+            "description": "at least one must appear",
+            "items": {
+              "type": "string"
+            },
+            "title": "Must Contain Any",
+            "type": "array"
+          },
+          "must_not_contain": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Must Not Contain",
+            "type": "array"
+          },
+          "require_sources": {
+            "default": false,
+            "title": "Require Sources",
+            "type": "boolean"
+          }
+        },
+        "title": "Checks",
+        "type": "object"
+      },
       "ConfigFile": {
         "description": "The JSON file you download / upload: every section's values (all of them, not only changes).",
         "properties": {
@@ -454,6 +521,156 @@
           "sections"
         ],
         "title": "ConfigFile",
+        "type": "object"
+      },
+      "ConfigTest": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "dataset_id": {
+            "title": "Dataset Id",
+            "type": "integer"
+          },
+          "dataset_name": {
+            "title": "Dataset Name",
+            "type": "string"
+          },
+          "dataset_version": {
+            "title": "Dataset Version",
+            "type": "integer"
+          },
+          "done_cases": {
+            "title": "Done Cases",
+            "type": "integer"
+          },
+          "draft_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft Id"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "estimated_cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Cost Usd"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "max_cases": {
+            "title": "Max Cases",
+            "type": "integer"
+          },
+          "results": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "per case: both variants side by side",
+            "title": "Results"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "description": "queued · running · cancelling · done · failed · cancelled",
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "per variant (live / draft): pass rate, judge, cost, p95, models",
+            "title": "Summary"
+          },
+          "total_cases": {
+            "title": "Total Cases",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "dataset_id",
+          "dataset_name",
+          "dataset_version",
+          "draft_id",
+          "max_cases",
+          "status",
+          "created_by",
+          "created_at",
+          "started_at",
+          "finished_at",
+          "done_cases",
+          "total_cases",
+          "error"
+        ],
+        "title": "ConfigTest",
         "type": "object"
       },
       "Conversation": {
@@ -836,6 +1053,88 @@
         "title": "DailyUsage",
         "type": "object"
       },
+      "Dataset": {
+        "properties": {
+          "author": {
+            "title": "Author",
+            "type": "string"
+          },
+          "cases": {
+            "title": "Cases",
+            "type": "integer"
+          },
+          "comment": {
+            "title": "Comment",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "topics": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Topics",
+            "type": "object"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "version",
+          "cases",
+          "topics",
+          "size_bytes",
+          "author",
+          "comment",
+          "created_at"
+        ],
+        "title": "Dataset",
+        "type": "object"
+      },
+      "DatasetPreview": {
+        "properties": {
+          "dataset": {
+            "$ref": "#/components/schemas/Dataset"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/agency_platform__evals__EvalCase"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "dataset",
+          "total",
+          "rows"
+        ],
+        "title": "DatasetPreview",
+        "type": "object"
+      },
       "DraftCreate": {
         "properties": {
           "comment": {
@@ -1083,104 +1382,6 @@
           "error"
         ],
         "title": "ErrorResponse",
-        "type": "object"
-      },
-      "EvalCase": {
-        "properties": {
-          "answer": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Answer"
-          },
-          "checks": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Checks"
-          },
-          "comment": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Comment"
-          },
-          "created_at": {
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "id": {
-            "title": "Id",
-            "type": "integer"
-          },
-          "label": {
-            "enum": [
-              "positive",
-              "negative"
-            ],
-            "title": "Label",
-            "type": "string"
-          },
-          "prompt": {
-            "title": "Prompt",
-            "type": "string"
-          },
-          "source_request_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Request Id"
-          },
-          "status": {
-            "enum": [
-              "candidate",
-              "approved",
-              "rejected",
-              "exported"
-            ],
-            "title": "Status",
-            "type": "string"
-          },
-          "topic": {
-            "title": "Topic",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "topic",
-          "source_request_id",
-          "prompt",
-          "answer",
-          "label",
-          "comment",
-          "status",
-          "checks",
-          "created_at"
-        ],
-        "title": "EvalCase",
         "type": "object"
       },
       "EvalCaseStatus": {
@@ -2701,6 +2902,38 @@
         "title": "SettingsUpdate",
         "type": "object"
       },
+      "TestCreate": {
+        "properties": {
+          "dataset_id": {
+            "title": "Dataset Id",
+            "type": "integer"
+          },
+          "draft_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None = run the live config only (a benchmark)",
+            "title": "Draft Id"
+          },
+          "max_cases": {
+            "default": 20,
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Max Cases",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "dataset_id"
+        ],
+        "title": "TestCreate",
+        "type": "object"
+      },
       "Today": {
         "properties": {
           "by_topic": {
@@ -3402,6 +3635,75 @@
         "title": "Version",
         "type": "object"
       },
+      "agency_platform__evals__EvalCase": {
+        "properties": {
+          "checks": {
+            "$ref": "#/components/schemas/Checks",
+            "default": {
+              "expect_refusal": false,
+              "min_judge_score": 3.5,
+              "must_contain": [],
+              "must_contain_any": [],
+              "must_not_contain": [],
+              "require_sources": false
+            }
+          },
+          "id": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "prompt": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Prompt",
+            "type": "string"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Known-good facts/answer the judge may compare against",
+            "title": "Reference"
+          },
+          "rubric": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What a good answer must do, for the judge",
+            "title": "Rubric"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "topic": {
+            "title": "Topic",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "topic",
+          "prompt"
+        ],
+        "title": "EvalCase",
+        "type": "object"
+      },
       "edge_gateway__routes_settings__Change": {
         "properties": {
           "draft": {
@@ -3464,6 +3766,104 @@
           "runs_pct"
         ],
         "title": "Change",
+        "type": "object"
+      },
+      "edge_gateway__schemas__EvalCase": {
+        "properties": {
+          "answer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer"
+          },
+          "checks": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checks"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "label": {
+            "enum": [
+              "positive",
+              "negative"
+            ],
+            "title": "Label",
+            "type": "string"
+          },
+          "prompt": {
+            "title": "Prompt",
+            "type": "string"
+          },
+          "source_request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Request Id"
+          },
+          "status": {
+            "enum": [
+              "candidate",
+              "approved",
+              "rejected",
+              "exported"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "topic": {
+            "title": "Topic",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "topic",
+          "source_request_id",
+          "prompt",
+          "answer",
+          "label",
+          "comment",
+          "status",
+          "checks",
+          "created_at"
+        ],
+        "title": "EvalCase",
         "type": "object"
       }
     },
@@ -3872,7 +4272,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/EvalCase"
+                    "$ref": "#/components/schemas/edge_gateway__schemas__EvalCase"
                   },
                   "title": "Response List Eval Cases",
                   "type": "array"
@@ -4102,6 +4502,534 @@
         "summary": "Prompt A/B results per variant",
         "tags": [
           "Admin: topics & experiments"
+        ]
+      }
+    },
+    "/api/v1/admin/experiments/datasets": {
+      "get": {
+        "operationId": "list_datasets",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Dataset"
+                  },
+                  "title": "Response List Datasets",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Test datasets, every version",
+        "tags": [
+          "Admin: experiments"
+        ]
+      },
+      "post": {
+        "description": "One JSON object per line: {\"id\", \"topic\", \"prompt\", \"checks\": {...}, \"rubric\", \"reference\", \"tags\"} —\nsame format as evals/datasets/*.jsonl. Errors come back per line; nothing is stored unless all lines are valid.",
+        "operationId": "upload_dataset",
+        "parameters": [
+          {
+            "description": "e.g. ev-basics",
+            "in": "query",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "description": "e.g. ev-basics",
+              "pattern": "^[a-z0-9][a-z0-9-]{1,62}$",
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "comment",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 300,
+              "title": "Comment",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dataset"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request body too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Temporarily unavailable (topic disabled, model gateway down, ...)"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Upload a test dataset (JSONL) — a new version",
+        "tags": [
+          "Admin: experiments"
+        ]
+      }
+    },
+    "/api/v1/admin/experiments/datasets/{dataset_id}/preview": {
+      "get": {
+        "operationId": "preview_dataset",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dataset_id",
+            "required": true,
+            "schema": {
+              "title": "Dataset Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "A dataset's cases",
+        "tags": [
+          "Admin: experiments"
+        ]
+      }
+    },
+    "/api/v1/admin/experiments/tests": {
+      "get": {
+        "operationId": "list_tests",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConfigTest"
+                  },
+                  "title": "Response List Tests",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Config tests, newest first (no per-case results)",
+        "tags": [
+          "Admin: experiments"
+        ]
+      },
+      "post": {
+        "description": "Each case runs once with the live config and once with the draft (as the eval service account). Starts\nwithin ~2 min; results stream in. The estimate uses each assistant's recent average cost per question.",
+        "operationId": "create_test",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigTest"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad request (e.g. unknown topic, malformed input)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Test a draft against live on a dataset (queued)",
+        "tags": [
+          "Admin: experiments"
+        ]
+      }
+    },
+    "/api/v1/admin/experiments/tests/{test_id}": {
+      "get": {
+        "operationId": "get_test",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "test_id",
+            "required": true,
+            "schema": {
+              "title": "Test Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigTest"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "One config test with per-case results",
+        "tags": [
+          "Admin: experiments"
+        ]
+      }
+    },
+    "/api/v1/admin/experiments/tests/{test_id}/cancel": {
+      "post": {
+        "operationId": "cancel_test",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "test_id",
+            "required": true,
+            "schema": {
+              "title": "Test Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigTest"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Stop a queued or running test",
+        "tags": [
+          "Admin: experiments"
         ]
       }
     },
@@ -7618,6 +8546,10 @@
     {
       "description": "Eval results, online judge scores, drift, eval-case curation. Admin only.",
       "name": "Admin: quality & evals"
+    },
+    {
+      "description": "Test datasets and config tests (draft vs live). Admin only.",
+      "name": "Admin: experiments"
     },
     {
       "description": "Edit config values live (validated, versioned, rollback). Admin only.",

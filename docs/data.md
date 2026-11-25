@@ -111,3 +111,34 @@ a version stores only what differs. Newest version per section is live in every 
 counter `settings:rev`, checked by each service). A value that doesn't validate is refused when saving; if one
 ever didn't validate at load, the service keeps serving the file alone. Rollback = a new version with an old
 one's content. Sections: plans, guardrails, memory, privacy, evals.
+
+
+## Experiments: drafts, datasets, config tests
+
+```mermaid
+flowchart LR
+  file[["agency-config.json<br/>(export / edit / import)"]]:::file --> draft[(settings_drafts<br/>draft #12)]:::db
+  edit([Admin → Settings<br/>Save as draft]):::ui --> draft
+  ds[["dataset.jsonl<br/>(upload)"]]:::file --> bucket[(bucket<br/>agency/datasets/…)]:::db
+  draft --> test{{config test<br/>dataset × live vs draft}}:::job
+  bucket --> test
+  test --> res[(config_tests<br/>results side by side)]:::db
+  res --> ui2([Admin → Experiments<br/>compare → Apply / Discard]):::ui
+  ui2 -- Apply --> live[(settings_versions<br/>live in ~10 s)]:::db
+  classDef file fill:#fef3c7,stroke:#d97706,color:#78350f
+  classDef db fill:#e2e8f0,stroke:#475569,color:#0f172a
+  classDef ui fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+  classDef job fill:#ede9fe,stroke:#7c3aed,color:#4c1d95
+```
+
+- **Drafts** (`settings_drafts`, 0010): `{section: override}`; from an imported config file or "Save as draft".
+  Applying = one `settings_versions` row per changed section. Sections: plans, models, guardrails, memory, privacy,
+  evals and `prompts_<topic>` for every `prompts/*.yaml`.
+- **Per-request draft:** header `X-Agency-Config-Draft: <id>`, honoured only for admin / service accounts; carried
+  to the model gateway as a signed call-token claim. Every config file returns file + draft **for that request
+  only**; live traffic never sees it.
+- **Datasets** (`eval_datasets`, 0011): JSONL in the bucket, one row per version; checked line by line on upload
+  (schema, known assistant, unique ids, ≤ 500 cases, ≤ 2 MB).
+- **Config tests** (`config_tests`, 0012): queued by an admin (≤ 50 cases, cost estimate shown), run by the quality
+  worker (CronJob `agency-experiments`, every 2 min) as the eval account: each case live and with the draft, both
+  checked and judged by the same judge (never the draft's), progress after each case, cancellable.
