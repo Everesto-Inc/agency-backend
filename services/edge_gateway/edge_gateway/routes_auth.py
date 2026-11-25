@@ -78,7 +78,8 @@ AUTH, ACCOUNT = ["Auth"], ["Account"]
              responses=openapi.errors(409, 422, 429))
 async def register(body: Credentials, request: Request, repo: Accounts, tokens: Tokens, refresh: Refresh, rl: Limiter):
     """New accounts start on the signup plan from config/plans.yaml. Returns tokens right away."""
-    await rl.hit(f"register:{client_ip(request, get_settings().trusted_proxy_count)}", 5, 3600)
+    s = get_settings()
+    await rl.hit(f"register:{client_ip(request, s.trusted_proxy_count, s.client_ip_header)}", 5, 3600)
     account = await repo.create(body.email, body.password, plans().signup_plan)
     return await _pair(account.id, account.email, account.role, account.effective_plan, tokens, refresh)
 
@@ -86,7 +87,8 @@ async def register(body: Credentials, request: Request, repo: Accounts, tokens: 
 @router.post("/login", response_model=TokenPair, tags=AUTH, summary="Log in",
              responses=openapi.errors(401, 422, 429))
 async def login(body: LoginBody, request: Request, repo: Accounts, tokens: Tokens, refresh: Refresh, rl: Limiter):
-    ip = client_ip(request, get_settings().trusted_proxy_count)
+    s = get_settings()
+    ip = client_ip(request, s.trusted_proxy_count, s.client_ip_header)
     email_key = f"login:email:{body.email.lower()}"
     await rl.hit(f"login:ip:{ip}", 30, _LOGIN_WINDOW_S)
     await rl.hit(email_key, 10, _LOGIN_WINDOW_S)  # brute-force guard per account

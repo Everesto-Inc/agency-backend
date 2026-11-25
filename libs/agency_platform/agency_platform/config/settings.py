@@ -74,6 +74,10 @@ class PlatformSettings(BaseSettings):
     expose_docs: bool = True
     max_request_body_bytes: int = 64 * 1024
     trusted_proxy_count: int = 1
+    # Header set by an edge proxy that REPLACES it on every request (e.g. Cloudflare: CF-Connecting-IP). Only
+    # safe when nothing but that proxy can reach the app (alb accepts 443 from Cloudflare ranges only).
+    # Empty = use X-Forwarded-For with trusted_proxy_count.
+    client_ip_header: str = ""
 
     # Observability
     langsmith_tracing: bool = False

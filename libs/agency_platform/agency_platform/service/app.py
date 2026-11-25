@@ -180,8 +180,11 @@ def create_service_app(settings: PlatformSettings, spec: ServiceSpec) -> FastAPI
     return app
 
 
-def client_ip(request: Request, trusted_proxy_count: int) -> str:
-    """Client IP honouring exactly N trusted proxies (prevents X-Forwarded-For spoofing)."""
+def client_ip(request: Request, trusted_proxy_count: int, header: str = "") -> str:
+    """Client IP: the edge proxy's header when configured (e.g. CF-Connecting-IP), else exactly N trusted proxies
+    of X-Forwarded-For (prevents spoofing)."""
+    if header and (value := request.headers.get(header, "").strip()):
+        return value
     xff = request.headers.get("x-forwarded-for")
     if xff and trusted_proxy_count > 0:
         hops = [h.strip() for h in xff.split(",") if h.strip()]

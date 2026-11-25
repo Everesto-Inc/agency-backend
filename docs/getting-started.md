@@ -50,11 +50,15 @@ In http://localhost:8000/docs:
 3. **Chat → POST /api/v1/chat** with `{"prompt": "Range and battery of the 2024 Hyundai Ioniq 5 in Germany?", "stream": false}`.
 4. **Dashboard → GET /api/v1/dashboard** — the tokens and cost that question used.
 
-New accounts are on the **free** plan (EV Helper only). For all topics, make yourself an admin on the `pro` plan:
+New accounts are on plan **none**: they can log in but use nothing until an **admin activates** them.
+Make yourself an admin (plan `pro`, all topics):
 
 ```bash
 docker compose run --rm -it edge-gateway python -m edge_gateway.cli create-admin you@example.com
 ```
+
+Activate another account (admin): **Admin → PUT /api/v1/admin/users/{user_id}/plan** with `{"plan": "free"}`, or
+`docker compose run --rm -it edge-gateway python -m edge_gateway.cli set-plan user@example.com free`.
 
 ## 5. Useful commands
 

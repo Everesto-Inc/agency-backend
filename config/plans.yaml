@@ -5,8 +5,9 @@
 # Hot-reloaded: edit -> applies on the next request; an invalid edit is rejected
 # and the last good version keeps serving.
 
-# Plan given to new registrations.
-signup_plan: free
+# Plan given to new registrations. 'none' = an account must be ACTIVATED by an admin first
+# (PUT /api/v1/admin/users/{id}/plan, or: python -m edge_gateway.cli set-plan <email> free).
+signup_plan: none
 # Plan in force when a paid subscription expires (plan_expires_at in the past)
 # or a user's plan name is unknown. 'none' = can log in, cannot run agents.
 lapsed_plan: none
