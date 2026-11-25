@@ -62,19 +62,17 @@ class ConversationRepository:
         )
 
     async def update(self, user_id: str, conversation_id: str, *, title: str | None, pinned: bool | None) -> bool:
-        sets, args = [], []
-        if title is not None:
-            sets.append("title = %s")
-            args.append(title[:TITLE_MAX])
-        if pinned is not None:
-            sets.append("pinned = %s")
-            args.append(pinned)
-        if not sets:
-            return await self.get(user_id, conversation_id) is not None
-        matched = await self._db.execute(
-            f"UPDATE conversations SET {', '.join(sets)} WHERE user_id = %s AND id = %s", (*args, user_id, conversation_id)
-        )
-        return bool(matched) or await self.get(user_id, conversation_id) is not None
+        """Rename and/or pin; a None field stays as it is. False = no such conversation."""
+        if title is not None or pinned is not None:
+            changed = await self._db.execute(
+                """UPDATE conversations SET title = COALESCE(%s, title), pinned = COALESCE(%s, pinned)
+                   WHERE user_id = %s AND id = %s""",
+                (title[:TITLE_MAX] if title is not None else None, pinned, user_id, conversation_id),
+            )
+            if changed:
+                return True
+        # nothing to change, or the same values again (MySQL counts changed rows): does it exist?
+        return await self.get(user_id, conversation_id) is not None
 
     async def delete(self, user_id: str, conversation_id: str) -> bool:
         """Remove it from the history and erase its text. Tokens/cost of the runs stay (usage + billing)."""

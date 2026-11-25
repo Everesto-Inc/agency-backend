@@ -59,8 +59,11 @@ async def test_update_and_delete():
     db = FakeDb(rows=[{"id": "a", "title": "x", "pinned": 0, "turns": 1, "last_topic": None, "created_at": 0, "updated_at": 0}])
     repo = ConversationRepository(db)
     assert await repo.update(U, "a", title="New", pinned=True)
-    assert db.calls[0][1] == ("New", True, U, "a")
+    assert "COALESCE" in db.calls[0][0] and db.calls[0][1] == ("New", True, U, "a")
     assert await repo.update(U, "a", title=None, pinned=None)  # nothing to change, but it exists
+    assert await repo.update(U, "a", title=None, pinned=False)  # only pin changes, title stays (NULL -> COALESCE)
+    assert db.calls[-1][1] == (None, False, U, "a")
+    assert not await ConversationRepository(FakeDb(matched=0)).update(U, "gone", title="x", pinned=None)
     db = FakeDb()
     assert await ConversationRepository(db).delete(U, "a")
     assert db.calls[0][0].startswith("DELETE FROM conversations")
