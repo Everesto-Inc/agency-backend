@@ -38,6 +38,15 @@ class FakeRuns:
     async def count_daily_run(self, **kw):
         self.calls.append(("count_daily_run", kw))
 
+    stored: list[dict] = []   # the chat's earlier runs in MySQL (memory reload)
+    fail_reload = False
+
+    async def chat_runs(self, **kw):
+        if self.fail_reload:
+            raise RuntimeError("db down")
+        self.calls.append(("chat_runs", kw))
+        return list(self.stored)
+
 
 class ScriptedAgent(TopicAgent):
     topic = "ev_research"
@@ -96,10 +105,10 @@ async def test_successful_run_records_usage_session_and_quota(redis):
     assert types == ["status", "token", "usage", "done"]
     assert events[2].data["total_tokens"] == 10
     assert events[3].data["status"] == "success"
-    assert [c[0] for c in runs.calls] == ["start", "finish", "count_daily_run"]
-    assert runs.calls[2][1] == {"user_id": UID, "topic": "ev_research", "success": True, "cached": False}
+    assert [c[0] for c in runs.calls] == ["start", "chat_runs", "finish", "count_daily_run"]
+    assert runs.calls[3][1] == {"user_id": UID, "topic": "ev_research", "success": True, "cached": False}
     assert await meter.topic_requests_today(UID, "ev_research") == 1
-    assert len(await SessionStore(redis).history(UID, "ev_research", "s1")) == 2
+    assert len(await SessionStore(redis).history(UID, "s1")) == 2
 
 
 async def test_agent_crash_is_sanitised_and_not_counted(redis):
@@ -183,3 +192,47 @@ def test_prompt_ab_assignment_is_sticky_and_tagged(tmp_path):
     (tmp_path / "t.yaml").write_text((tmp_path / "t.yaml").read_text().replace("base", "base v2"))
     os.utime(tmp_path / "t.yaml", (time.time() + 5, time.time() + 5))
     assert store.fingerprint("t", "user-1") != fp_before  # edits invalidate response cache keys
+
+
+class HistoryAgent(ScriptedAgent):
+    """Answers with what it remembers, so tests can see the memory it was given."""
+
+    def __init__(self, topic="ev_research"):
+        super().__init__()
+        self.topic = topic
+        self.seen: list[list[dict]] = []
+
+    async def run(self, prompt, ctx):
+        self.seen.append(list(ctx.history))
+        yield AgentEvent.answer(f"answer to {prompt}")
+
+
+async def test_memory_is_reloaded_from_mysql_when_redis_forgot(redis):
+    runs = FakeRuns()
+    runs.stored = [{"topic": "ev_research", "prompt": "Range of the Model Y?", "answer": "533 km"},
+                   {"topic": "ev_research", "prompt": "no answer stored", "answer": None}]
+    agent = HistoryAgent()
+    await collect(make_runner(agent, redis, runs), RunRequest(user(), "And in winter?", "chat-1", "req-mem-00001"))
+    assert [m["content"] for m in agent.seen[0]] == ["Range of the Model Y?", "533 km"]   # reloaded (unanswered skipped)
+    reload = next(kw for name, kw in runs.calls if name == "chat_runs")
+    assert reload["exclude_request_id"] == "req-mem-00001" and reload["session_id"] == "chat-1"
+    # put back into Redis + the new turn appended: the next run reads Redis, no second reload
+    assert len(await SessionStore(redis).history(UID, "chat-1")) == 4
+    await collect(make_runner(agent, redis, runs), RunRequest(user(), "Thanks", "chat-1", "req-mem-00002"))
+    assert [n for n, _ in runs.calls].count("chat_runs") == 1
+
+
+async def test_one_memory_per_chat_shared_by_assistants(redis):
+    ev, finance = HistoryAgent("ev_research"), HistoryAgent("finance")
+    await collect(make_runner(ev, redis, FakeRuns()), RunRequest(user(), "Model Y price?", "chat-2", "req-mem-00003"))
+    await collect(make_runner(finance, redis, FakeRuns()), RunRequest(user(), "Is Tesla stock cheap?", "chat-2", "req-mem-00004"))
+    remembered = finance.seen[0]
+    assert [m["content"] for m in remembered] == ["Model Y price?", "answer to Model Y price?"]
+    assert {m["topic"] for m in remembered} == {"ev_research"}          # it knows who said it
+
+
+async def test_memory_reload_failure_never_breaks_the_answer(redis):
+    runs = FakeRuns()
+    runs.fail_reload = True
+    events = await collect(make_runner(HistoryAgent(), redis, runs), RunRequest(user(), "q", "chat-3", "req-mem-00005"))
+    assert events[-1].data["status"] == "success"

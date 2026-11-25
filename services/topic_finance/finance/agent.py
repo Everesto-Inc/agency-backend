@@ -6,6 +6,7 @@ from autogen_agentchat.messages import TextMessage, ToolCallExecutionEvent, Tool
 from fastapi import FastAPI
 
 from agency_platform.agents.base import AgentEvent, RunContext, TopicAgent
+from agency_platform.agents.sessions import with_history
 from agency_platform.cache import get_redis
 from finance.market import MarketData, YFinanceMarketData
 from finance.params import params
@@ -29,8 +30,7 @@ class FinanceAgent(TopicAgent):
         assert self._market is not None
         tools = FinanceTools(self._market)
         team = build_team(ctx, tools, self._client_factory)
-        history = "\n".join(f"{m['role']}: {m['content'][:500]}" for m in ctx.history[-4:])
-        task = f"Earlier conversation:\n{history}\n\nUser question: {prompt}" if history else prompt
+        task = with_history(prompt, ctx.history)
 
         analysis: str | None = None
         approved = False

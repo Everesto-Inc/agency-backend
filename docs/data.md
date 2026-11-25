@@ -25,6 +25,19 @@ Rules:
   migration; add `NNNN_next.sql`.
 - Timestamps are UTC (`DATETIME(6)`), money is `DECIMAL`, ids are UUID strings.
 
+## Chat memory
+
+What an assistant remembers of the current chat: the last messages, word for word (EV / Finance / Product Finder
+read the last 4). **One memory per chat**, shared by every assistant — switching assistant keeps the context.
+
+| Copy | Where | Kept |
+|---|---|---|
+| fast | Redis `sess:<user>:<chat>` (last 20 messages) | 24 h after the last message |
+| durable | MySQL `agent_runs` of that chat (PII-redacted) | text 30 days (`config/privacy.yaml`) |
+
+When Redis has nothing (expired, restarted), the runner reloads the chat's last answered turns from MySQL and puts
+them back into Redis — reopening an old chat continues with context. Deleting a chat erases both.
+
 ## Redis
 
 Everything in Redis expires or can be rebuilt — losing it loses no permanent data.
@@ -35,7 +48,7 @@ Everything in Redis expires or can be rebuilt — losing it loses no permanent d
 | `usage:run:<request_id>` | tokens/cost of one run (read when the run finishes) |
 | `rl:<key>:<window>` | rate limits (per user, login, register) |
 | `acct:<user>` | 60 s account/plan cache |
-| `sess:<user>:<topic>:<session>` | conversation memory |
+| `sess:<user>:<chat>` | chat memory: the last 20 messages, **one per chat** (shared by all assistants), 24 h — reloaded from MySQL `agent_runs` when gone |
 | `rcache:<topic>:…` | response cache (identical first-turn questions) |
 | `llmcache:…`, `route:judge:…` | LLM call cache, routing-judge verdicts |
 | `fx:…`, `mkt:…` | exchange rates, market data |

@@ -46,8 +46,8 @@ def test_account_cache_key_is_prefixed(prefixed):
 async def test_session_store_writes_and_forgets_only_prefixed_keys(prefixed):
     r = fakeredis.aioredis.FakeRedis(decode_responses=True)
     store = SessionStore(r)
-    await store.append("u1", "ev", "s1", {"role": "user", "content": "hi"})
-    assert await r.keys() == [f"{PREFIX}sess:u1:ev:s1"]
+    await store.append("u1", "s1", {"role": "user", "content": "hi"})
+    assert await r.keys() == [f"{PREFIX}sess:u1:s1"]
     assert await store.forget_user("u1") == 1
     assert await r.keys() == []
 

@@ -82,6 +82,17 @@ class RunRepository:
             (label, comment, request_id),
         )
 
+    async def chat_runs(self, *, user_id: str, session_id: str, exclude_request_id: str, limit: int) -> list[dict[str, Any]]:
+        """The last answered questions of one chat, oldest first (memory reload; text is PII-redacted)."""
+        rows = await self._db.fetch(
+            """SELECT topic, prompt, answer FROM agent_runs
+               WHERE user_id = %s AND session_id = %s AND request_id <> %s AND status = 'success'
+                 AND prompt IS NOT NULL AND answer IS NOT NULL
+               ORDER BY created_at DESC LIMIT %s""",
+            (user_id, session_id, exclude_request_id, limit),
+        )
+        return list(reversed(rows))
+
     async def list_for_user(self, user_id: str, *, topic: str | None, limit: int,
                             start: datetime | None = None, end: datetime | None = None) -> list[dict[str, Any]]:
         return await self._db.fetch(

@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 from fastapi import FastAPI
 
 from agency_platform.agents.base import AgentEvent, RunContext, TopicAgent
+from agency_platform.agents.sessions import with_history
 from agency_platform.cache import get_redis
 from agency_platform.tools.search import WebSearch
 from product_finder import offers as pipeline
@@ -34,7 +35,8 @@ class ProductFinderAgent(TopicAgent):
 
     async def run(self, prompt: str, ctx: RunContext) -> AsyncIterator[AgentEvent]:
         assert self._search is not None and self._fx is not None
-        plan = await self._crews.plan(prompt, default_country="US", ctx=ctx)
+        # the chat's last messages go along: "and in France?" refers to the product asked before
+        plan = await self._crews.plan(with_history(prompt, ctx.history), default_country="US", ctx=ctx)
         yield AgentEvent.status(f"Looking for: {plan.product} ({plan.country_code}, {plan.currency})",
                                 step="plan", must_match=plan.must_match)
 

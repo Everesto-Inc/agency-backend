@@ -23,7 +23,7 @@ import httpx
 
 from agency_platform.agents.base import AgentEvent, RunContext, TopicAgent
 from agency_platform.agents.response_cache import CachedAnswer, ResponseCache
-from agency_platform.agents.sessions import SessionStore
+from agency_platform.agents.sessions import SessionStore, turns_from_runs
 from agency_platform.auth.deps import AuthenticatedUser
 from agency_platform.billing.usage import RateLimiter, UsageMeter
 from agency_platform.config.prompts import PromptStore
@@ -182,7 +182,7 @@ class TopicRunner:
 
         try:
             await self._record_start(req, fingerprint)
-            history = await self._sessions.history(req.user.id, self.topic, req.session_id)
+            history = await self._memory(req)
             cacheable = self._cache is not None and cfg.response_cache_ttl_s > 0 and not history
             cache_key = (
                 self._cache.key(self.topic, fingerprint, req.user.plan_config.max_tier, req.prompt) if cacheable else None
@@ -247,6 +247,22 @@ class TopicRunner:
                     "request_id": req.request_id,
                 }))
                 await queue.put(_END)
+
+    async def _memory(self, req: RunRequest) -> list[dict[str, str]]:
+        """The chat's memory: Redis (fast, 24 h); when empty, the chat's stored turns from MySQL, put back into Redis."""
+        history = await self._sessions.history(req.user.id, req.session_id)
+        if history:
+            return history
+        try:
+            runs = await self._runs.chat_runs(user_id=req.user.id, session_id=req.session_id,
+                                              exclude_request_id=req.request_id, limit=self._sessions.max_turns // 2)
+        except Exception:
+            logger.warning("chat memory reload failed", extra={"topic": self.topic}, exc_info=True)
+            return []
+        history = turns_from_runs(runs)
+        if history:
+            await self._sessions.append(req.user.id, req.session_id, *history)
+        return history
 
     def _build_context(self, req: RunRequest, cfg: TopicConfig, history: list[dict[str, str]]) -> RunContext:
         secret = self._settings.model_gateway_client_secret
@@ -314,12 +330,11 @@ class TopicRunner:
             )
             if success:
                 await self._meter.count_topic_request(req.user.id, self.topic)
-                await self._sessions.append(
+                await self._sessions.append(  # one memory per chat, shared by every assistant
                     req.user.id,
-                    self.topic,
                     req.session_id,
-                    {"role": "user", "content": req.prompt},
-                    {"role": "assistant", "content": answer[:8000]},
+                    {"role": "user", "content": req.prompt, "topic": self.topic},
+                    {"role": "assistant", "content": answer[:8000], "topic": self.topic},
                 )
         except Exception:
             logger.exception("failed to finalise run record", extra={"topic": self.topic})

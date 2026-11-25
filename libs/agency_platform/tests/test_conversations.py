@@ -7,7 +7,7 @@ import fakeredis.aioredis
 ROOT = Path(__file__).resolve().parents[3]
 os.environ.setdefault("CONFIG_DIR", str(ROOT / "config"))
 
-from agency_platform.agents.sessions import SessionStore
+from agency_platform.agents.sessions import SessionStore, turns_from_runs, with_history
 from agency_platform.repositories import ConversationRepository, title_from_prompt
 
 U = "6f1c2c1e-3b9d-4a51-9a52-0b5a4c1d2e3f"
@@ -73,8 +73,16 @@ async def test_update_and_delete():
 async def test_forget_session_only_touches_that_conversation():
     r = fakeredis.aioredis.FakeRedis(decode_responses=True)
     store = SessionStore(r)
-    await store.append(U, "finance", "keep", {"role": "user", "content": "a"})
-    await store.append(U, "finance", "drop", {"role": "user", "content": "b"})
-    await store.append(U, "ev_research", "drop", {"role": "user", "content": "c"})
+    await store.append(U, "keep", {"role": "user", "content": "a"})
+    await store.append(U, "drop", {"role": "user", "content": "b"})
+    await r.rpush(f"sess:{U}:ev_research:drop", "old per-assistant key")   # from before memory was per chat
     assert await store.forget_session(U, "drop") == 2
-    assert await r.keys() == [f"sess:{U}:finance:keep"]
+    assert await r.keys() == [f"sess:{U}:keep"]
+
+
+def test_turns_from_runs_and_with_history():
+    turns = turns_from_runs([{"topic": "finance", "prompt": "Q1", "answer": "A1"}, {"topic": "ev", "prompt": "Q2", "answer": None}])
+    assert turns == [{"role": "user", "content": "Q1", "topic": "finance"}, {"role": "assistant", "content": "A1", "topic": "finance"}]
+    assert with_history("new?", []) == "new?"
+    text = with_history("and in France?", [*turns, {"role": "system", "content": "x"}])
+    assert text.startswith("Earlier conversation:\nuser: Q1\nassistant: A1") and text.endswith("User question: and in France?")
