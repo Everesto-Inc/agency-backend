@@ -198,7 +198,8 @@ async def test_upload_attach_read_and_delete():
     store = ImageStore(db, web_client({}), bucket_store(bucket))
     img = await store.save_upload("u1", "chat1", PNG)
     assert img.content_type == "image/png" and len(img.id) == 64
-    assert f"agency/uploads/u1/{img.id}" in bucket.objects
+    [key] = [k for k in bucket.objects if k.startswith("agency/uploads/u1/chat1/")]
+    assert key.endswith(f"-{img.id[:8]}.png")
 
     with pytest.raises(BadRequestError):                       # someone else's / other chat
         await store.attach("u2", "chat1", [img.id], "req-1")
@@ -316,3 +317,13 @@ async def test_security_headers_keep_a_routes_own_cache_header():
     headers = sent[0]["headers"]
     assert [v for k, v in headers if k == b"cache-control"] == [b"public, max-age=31536000, immutable"]
     assert (b"x-frame-options", b"DENY") in headers and any(k == b"content-security-policy" for k, _ in headers)
+
+
+
+def test_upload_key_is_per_user_per_chat_with_a_timestamp():
+    from datetime import UTC, datetime
+
+    from agency_platform.tools.images import upload_key
+    at = datetime(2026, 11, 25, 16, 4, 12, tzinfo=UTC)
+    assert upload_key("u1", "chat9", "3f9a1c7e" + "0" * 56, "image/jpeg", at) == \
+        "uploads/u1/chat9/2026-11-25T16-04-12Z-3f9a1c7e.jpg"

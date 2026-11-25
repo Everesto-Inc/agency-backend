@@ -8,7 +8,8 @@ Two kinds:
   web     found on the web for an answer. Downloaded once (public address only, real image, ≤ MAX_WEB_BYTES, no
           redirects), shared by everyone, id = sha256 of the source address → bucket key web/<id>.
   upload  sent by a user with a question (the browser shrinks it first). Private to that user: served only to them,
-          deleted with the chat, the account, or after the retention period → key uploads/<user>/<id>.
+          deleted with the chat, the account, or after the retention period
+          → key uploads/<user>/<chat>/<UTC timestamp>-<8 hex>.<ext>.
 
 The browser only ever loads pictures from our API (GET /api/v1/images/<id>), never from the bucket or a third
 party: strict CSP, no tracking, and pictures stay visible even if the source page changes.
@@ -17,6 +18,7 @@ The type is decided from the file's first bytes, never from what the sender clai
 import hashlib
 import logging
 import secrets
+from datetime import UTC, datetime
 from dataclasses import dataclass
 from typing import Any
 
@@ -44,6 +46,15 @@ _ID_HEX = 64
 def image_id(url: str) -> str:
     """Pure: a web picture's id = sha256 of its source address (same picture → stored once)."""
     return hashlib.sha256(url.strip().encode()).hexdigest()
+
+
+_EXT = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif", "image/avif": ".avif"}
+
+
+def upload_key(user_id: str, session_id: str, iid: str, content_type: str, at: datetime) -> str:
+    """Pure: where a sent picture lives in the bucket — per user, per chat, readable in the console:
+    uploads/<user>/<chat>/2026-11-25T16-04-12Z-3f9a1c7e.jpg (no original file name: it can hold personal data)."""
+    return f"uploads/{user_id}/{session_id}/{at.strftime('%Y-%m-%dT%H-%M-%SZ')}-{iid[:8]}{_EXT.get(content_type, '')}"
 
 
 def is_image_id(value: str) -> bool:
@@ -165,7 +176,7 @@ class ImageStore:
         if content_type not in UPLOAD_TYPES:
             raise BadRequestError("Only JPEG, PNG or WebP pictures can be sent")
         iid = secrets.token_hex(32)
-        key = f"uploads/{user_id}/{iid}"
+        key = upload_key(user_id, session_id, iid, content_type, datetime.now(UTC))
         await objects.put(key, data, content_type)
         await self._db.execute(
             """INSERT INTO images (id, kind, object_key, content_type, size_bytes, user_id, session_id)

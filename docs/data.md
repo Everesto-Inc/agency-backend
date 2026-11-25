@@ -77,7 +77,7 @@ The pictures themselves are in **OCI Object Storage** (bucket `dev-agency-media`
 | Kind | Where in the bucket | Who sees it | Deleted |
 |---|---|---|---|
 | **web** — EV "show me a picture of the Model Y" | `agency/web/<sha256 of the source>` | everyone (public web pictures) | never (shared, stored once) |
-| **upload** — a picture the user sent with a question | `agency/uploads/<user>/<id>` | only that user | with the chat · the account · after 30 days (retention) |
+| **upload** — a picture the user sent with a question | `agency/uploads/<user>/<chat>/<UTC time>-<8 hex>.jpg` | only that user | with the chat · the account · after 30 days (retention) |
 
 - **Web:** the one found with the cached specs is reused (`ev_model_specs.image_url`, no new search), otherwise one
   image search, remembered for next time. Downloaded once: public address only, ≤ 1.5 MB, no redirects.
