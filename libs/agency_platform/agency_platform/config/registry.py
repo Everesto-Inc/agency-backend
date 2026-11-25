@@ -3,7 +3,7 @@ from functools import lru_cache
 
 from agency_platform.config.params import ParamFile
 from agency_platform.config.prompts import PromptStore
-from agency_platform.config.schemas import EvalsFile, GuardrailsFile, PlansFile, PrivacyFile, TopicsFile
+from agency_platform.config.schemas import EvalsFile, GuardrailsFile, MemoryFile, PlansFile, PrivacyFile, TopicsFile
 from agency_platform.config.settings import get_settings
 
 
@@ -55,3 +55,12 @@ def guardrails_file() -> ParamFile[GuardrailsFile]:
 
 def guardrails() -> GuardrailsFile:
     return guardrails_file().get()
+
+
+@lru_cache
+def memory_file() -> ParamFile[MemoryFile]:
+    return ParamFile(get_settings().config_dir / "memory.yaml", MemoryFile)
+
+
+def memory() -> MemoryFile:
+    return memory_file().get()

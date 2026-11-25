@@ -179,14 +179,14 @@ A **different chat** has its own, separate memory. Memory never crosses users �
 
 | What | Today | Where |
 |---|---|---|
-| Messages read word for word | 4 | `RECENT` — `agency_platform/agents/sessions.py` |
-| Fold into the summary after | 6 older messages (≈ 3 questions) | `FOLD_AT_LEAST` — same file |
-| Fast copy size / lifetime | 20 messages / 24 h | `_MAX_TURNS`, `_TTL_S` — same file |
+| Messages read word for word | 4 | `config/memory.yaml` → `recent` |
+| Fold into the summary after | 6 older messages (≈ 3 questions) | `config/memory.yaml` → `fold_at_least` |
+| Fast copy size / lifetime | 20 messages / 24 h | `config/memory.yaml` → `max_turns`, `ttl_hours` |
 | How the summary is written | ≤ 8 bullets, < 150 words | `prompts/memory.yaml` (versioned, editable) |
 | Model for the summary | low tier | `config/models.yaml` → `tasks.summarization` |
 | How long text is kept | 30 days | `config/privacy.yaml` → `retention.run_text_days` |
 
-These move to **Admin → Settings** (edit without a code change) — see the roadmap.
+**Admin → Settings → Chat memory** changes the `config/memory.yaml` values live (≈ 10 s), with history and rollback.
 
 ## FAQ
 

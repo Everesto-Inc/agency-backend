@@ -2460,6 +2460,100 @@
         "title": "SentPicture",
         "type": "object"
       },
+      "SettingsSection": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "file_values": {
+            "additionalProperties": true,
+            "description": "config/<name>.yaml as written — the defaults",
+            "title": "File Values",
+            "type": "object"
+          },
+          "json_schema": {
+            "additionalProperties": true,
+            "description": "JSON Schema of the values (for the form)",
+            "title": "Json Schema",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "override": {
+            "additionalProperties": true,
+            "description": "What Admin → Settings changed ({} = nothing)",
+            "title": "Override",
+            "type": "object"
+          },
+          "override_rejected": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set if the override doesn't validate with the file",
+            "title": "Override Rejected"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "values": {
+            "additionalProperties": true,
+            "description": "What the services use now: file + override",
+            "title": "Values",
+            "type": "object"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Version"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "title",
+          "description",
+          "json_schema",
+          "file_values",
+          "override",
+          "values"
+        ],
+        "title": "SettingsSection",
+        "type": "object"
+      },
+      "SettingsUpdate": {
+        "properties": {
+          "comment": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Comment",
+            "type": "string"
+          },
+          "values": {
+            "additionalProperties": true,
+            "description": "All values as you want them (only differences are stored)",
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "values"
+        ],
+        "title": "SettingsUpdate",
+        "type": "object"
+      },
       "Today": {
         "properties": {
           "by_topic": {
@@ -3123,6 +3217,42 @@
           "daily"
         ],
         "title": "UserUsageDetail",
+        "type": "object"
+      },
+      "Version": {
+        "properties": {
+          "author": {
+            "title": "Author",
+            "type": "string"
+          },
+          "comment": {
+            "title": "Comment",
+            "type": "string"
+          },
+          "content": {
+            "additionalProperties": true,
+            "description": "What differed from the file in this version ({} = the file as is)",
+            "title": "Content",
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "author",
+          "comment",
+          "created_at",
+          "content"
+        ],
+        "title": "Version",
         "type": "object"
       }
     },
@@ -4375,6 +4505,314 @@
         "summary": "Every LLM call of one run",
         "tags": [
           "Admin: accounts & runs"
+        ]
+      }
+    },
+    "/api/v1/admin/settings": {
+      "get": {
+        "operationId": "list_settings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SettingsSection"
+                  },
+                  "title": "Response List Settings",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Every editable settings section",
+        "tags": [
+          "Admin: settings"
+        ]
+      }
+    },
+    "/api/v1/admin/settings/{name}": {
+      "put": {
+        "description": "Send all values as you want them; only what differs from the file is stored. Sending the file values\n(or {} → see reset) means \"use the file\".",
+        "operationId": "update_settings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z_]{1,32}$",
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsSection"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Save a section (validated; live in ~10 s)",
+        "tags": [
+          "Admin: settings"
+        ]
+      }
+    },
+    "/api/v1/admin/settings/{name}/history": {
+      "get": {
+        "operationId": "settings_history",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z_]{1,32}$",
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Version"
+                  },
+                  "title": "Response Settings History",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Versions of a section, newest first",
+        "tags": [
+          "Admin: settings"
+        ]
+      }
+    },
+    "/api/v1/admin/settings/{name}/rollback/{version_id}": {
+      "post": {
+        "operationId": "rollback_settings",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "title": "Version Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z_]{1,32}$",
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsSection"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Make an old version live again (as a new version)",
+        "tags": [
+          "Admin: settings"
         ]
       }
     },
@@ -6479,6 +6917,10 @@
     {
       "description": "Eval results, online judge scores, drift, eval-case curation. Admin only.",
       "name": "Admin: quality & evals"
+    },
+    {
+      "description": "Edit config values live (validated, versioned, rollback). Admin only.",
+      "name": "Admin: settings"
     },
     {
       "description": "Every time a guardrail fired (quota, injection, PII, grounding, uploads…). Admin only.",

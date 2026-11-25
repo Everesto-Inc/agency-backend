@@ -1,0 +1,5 @@
+# Chat memory (docs/memory.md). Hot-reloaded; also editable in Admin → Settings.
+recent: 4            # messages the assistants read word for word
+fold_at_least: 6     # fold older messages into the summary once this many are waiting (≈ every 3 questions)
+max_turns: 20        # fast copy in Redis: last N messages per chat
+ttl_hours: 24        # fast copy lifetime (then reloaded from MySQL)

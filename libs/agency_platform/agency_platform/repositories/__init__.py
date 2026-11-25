@@ -7,6 +7,7 @@ from agency_platform.repositories.guardrails import GuardrailRepository
 from agency_platform.repositories.llm_calls import CALL_COLUMNS, LlmCallRepository
 from agency_platform.repositories.retention import RetentionRepository
 from agency_platform.repositories.runs import RunRepository, RunResult
+from agency_platform.repositories.settings import SettingsRepository
 from agency_platform.repositories.usage import UsageRepository
 
 __all__ = [
@@ -19,6 +20,7 @@ __all__ = [
     "RetentionRepository",
     "RunRepository",
     "RunResult",
+    "SettingsRepository",
     "UsageRepository",
     "title_from_prompt",
 ]

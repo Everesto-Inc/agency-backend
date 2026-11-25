@@ -5,6 +5,7 @@ headers, body-size limits, CORS, uniform error envelopes, LangSmith wiring,
 DB/Redis lifecycles, a shared outbound HTTP client, liveness/readiness probes
 and Prometheus metrics. Services only add their own routers and hooks.
 """
+import contextlib
 import logging
 from collections.abc import Awaitable, Callable, Sequence
 from contextlib import asynccontextmanager
@@ -77,12 +78,23 @@ def create_service_app(settings: PlatformSettings, spec: ServiceSpec) -> FastAPI
             timeout=httpx.Timeout(30.0, connect=5.0),
             limits=httpx.Limits(max_connections=200, max_keepalive_connections=50),
         )
+        sync = None
+        if spec.use_db and spec.use_redis:   # Admin → Settings overrides, live in this process
+            from agency_platform.cache import get_redis
+            from agency_platform.config.overrides import SettingsSync
+            from agency_platform.db import get_db
+            sync = SettingsSync(get_db(), get_redis())
+            with contextlib.suppress(Exception):
+                await sync.check()            # before serving; failures are retried by the loop
+            sync.start()
         for hook in spec.on_startup:
             await hook(app)
         logger.info("service started", extra={"environment": settings.environment})
         try:
             yield
         finally:
+            if sync is not None:
+                await sync.stop()
             for hook in reversed(spec.on_shutdown):
                 try:
                     await hook(app)

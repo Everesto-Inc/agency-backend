@@ -118,6 +118,13 @@ class GuardrailsFile(BaseModel):
     pictures: PictureLimits = PictureLimits()
 
 
+class MemoryFile(BaseModel):
+    recent: int = Field(4, ge=0, le=20)
+    fold_at_least: int = Field(6, ge=2, le=50)
+    max_turns: int = Field(20, ge=2, le=200)
+    ttl_hours: int = Field(24, ge=1, le=24 * 30)
+
+
 class PrivacyFile(BaseModel):
     pii: PIIConfig = PIIConfig()
     retention: RetentionConfig = RetentionConfig()

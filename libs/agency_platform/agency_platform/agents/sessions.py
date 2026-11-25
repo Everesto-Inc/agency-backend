@@ -16,9 +16,9 @@ from typing import Any
 from redis.asyncio import Redis
 
 from agency_platform.cache import rkey
+from agency_platform.config.registry import memory
 
-_MAX_TURNS = 20
-_TTL_S = 24 * 3600
+# Defaults of config/memory.yaml (Admin → Settings changes them live; these names stay for tests/docs).
 RECENT = 4          # messages the assistants read word for word
 FOLD_AT_LEAST = 6   # summarize once this many older messages are not in the summary yet (≈ every 3 questions)
 
@@ -41,19 +41,23 @@ def _iso(value: Any) -> str:
 
 
 def messages_to_fold(history: list[dict[str, str]], upto: datetime | str | None,
-                     keep_recent: int = RECENT, at_least: int = FOLD_AT_LEAST) -> list[dict[str, str]]:
+                     keep_recent: int | None = None, at_least: int | None = None) -> list[dict[str, str]]:
     """Pure: the older messages (outside the last `keep_recent`) not yet in the summary — or [] if fewer than
     `at_least`, so the cheap model runs about every 3 questions, not every time."""
-    older = history[:-keep_recent] if len(history) > keep_recent else []
+    cfg = memory() if keep_recent is None or at_least is None else None
+    keep_recent = cfg.recent if keep_recent is None else keep_recent  # type: ignore[union-attr]
+    at_least = cfg.fold_at_least if at_least is None else at_least    # type: ignore[union-attr]
+    older = history[:-keep_recent] if keep_recent and len(history) > keep_recent else ([] if keep_recent else history)
     cutoff = _iso(upto) if upto else ""
     new = [m for m in older if m.get("at") and m["at"] > cutoff]
     return new if len(new) >= at_least else []
 
 
-def with_history(prompt: str, history: list[dict[str, str]], last: int = RECENT, max_chars: int = 500,
+def with_history(prompt: str, history: list[dict[str, str]], last: int | None = None, max_chars: int = 500,
                  summary: str | None = None) -> str:
     """Pure: the question with the chat's summary + last messages in front (for agents that take one task text)."""
-    recent = [m for m in history if m.get("role") in ("user", "assistant")][-last:]
+    last = memory().recent if last is None else last
+    recent = [m for m in history if m.get("role") in ("user", "assistant")][-last:] if last else []
     if not recent and not summary:
         return prompt
     parts = []
@@ -65,14 +69,22 @@ def with_history(prompt: str, history: list[dict[str, str]], last: int = RECENT,
 
 
 class SessionStore:
-    def __init__(self, redis: Redis, max_turns: int = _MAX_TURNS, ttl_s: int = _TTL_S) -> None:
+    def __init__(self, redis: Redis, max_turns: int | None = None, ttl_s: int | None = None) -> None:
         self._r = redis
-        self._max = max_turns
-        self._ttl = ttl_s
+        self._max_fixed = max_turns   # None = config/memory.yaml (live)
+        self._ttl_fixed = ttl_s
 
     @property
     def max_turns(self) -> int:
-        return self._max
+        return self._max_fixed if self._max_fixed is not None else memory().max_turns
+
+    @property
+    def _max(self) -> int:
+        return self.max_turns
+
+    @property
+    def _ttl(self) -> int:
+        return self._ttl_fixed if self._ttl_fixed is not None else memory().ttl_hours * 3600
 
     @staticmethod
     def _key(user_id: str, session_id: str) -> str:

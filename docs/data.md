@@ -90,3 +90,24 @@ The pictures themselves are in **OCI Object Storage** (bucket `dev-agency-media`
 - **Serving:** only through `GET /api/v1/images/<id>` (web: public, cached for a year · uploads: owner's Bearer
   token only). The chat shows only `/api/v1/images/<id>` pictures, never third-party links.
 - **Settings:** `S3_*` in `.env.example`. Not set → no pictures in answers, uploads refused; everything else works.
+
+
+## Guardrail events
+
+MySQL `guardrail_events` (migration 0008) + Prometheus `agency_guardrail_events_total{service,kind,action}`: one
+row every time a guardrail fires — quota / rate limit / plan, input rejected, injection attempt (question or text in
+a picture), PII masked before an LLM call, a number not found on its source page (dropped), unsafe address,
+refused upload. **Never the user's text** — only what fired, where, and short technical detail (pattern names,
+counts, a domain). Admin → Guardrails reads it; kept `privacy.yaml → retention.guardrail_events_days` (90).
+
+Injection check: `config/guardrails.yaml → injection` — `off` / `flag` (log, still answer) / `block` (refuse; in
+a picture only that picture's text is withheld), `threshold`, optional `llm_check` (a cheap model's second
+opinion for borderline questions).
+
+## Settings overrides
+
+MySQL `settings_versions` (migration 0009): Admin → Settings saves. The YAML files in `config/` stay the defaults;
+a version stores only what differs. Newest version per section is live in every service within ~10 s (Redis
+counter `settings:rev`, checked by each service). A value that doesn't validate is refused when saving; if one
+ever didn't validate at load, the service keeps serving the file alone. Rollback = a new version with an old
+one's content. Sections: plans, guardrails, memory, privacy, evals.
