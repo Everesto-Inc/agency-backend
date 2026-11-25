@@ -18,8 +18,8 @@ The type is decided from the file's first bytes, never from what the sender clai
 import hashlib
 import logging
 import secrets
-from datetime import UTC, datetime
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
