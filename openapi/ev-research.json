@@ -248,6 +248,12 @@
       },
       "RunBody": {
         "properties": {
+          "direct": {
+            "default": false,
+            "description": "Triage decided a short answer is enough (greeting, 'who are you', a simple general question): one short call, no agent workflow",
+            "title": "Direct",
+            "type": "boolean"
+          },
           "prompt": {
             "description": "The user's question",
             "examples": [
@@ -264,12 +270,6 @@
             "pattern": "^[A-Za-z0-9\\-_]{1,64}$",
             "title": "Session Id",
             "type": "string"
-          },
-          "smalltalk": {
-            "default": false,
-            "description": "Greeting / 'who are you': one short answer, no agent workflow (set by the edge's router)",
-            "title": "Smalltalk",
-            "type": "boolean"
           },
           "stream": {
             "default": true,

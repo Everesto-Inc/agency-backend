@@ -73,7 +73,7 @@ def build_topic_router(get_runner, tag: str) -> APIRouter:
         runner: TopicRunner = get_runner()
         prompt = await runner.preflight(user, body.prompt)
         req = RunRequest(user=user, prompt=prompt, session_id=body.session_id, request_id=request.state.request_id,
-                         smalltalk=body.smalltalk)
+                         direct=body.direct)
         if body.stream:
             return StreamingResponse(
                 _sse_stream(runner.stream(req)),

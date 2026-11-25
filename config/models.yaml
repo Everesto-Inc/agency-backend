@@ -67,7 +67,7 @@ routing:
     intent_parsing: low
     extraction: low
     summarization: low
-    smalltalk: low                # greetings, "who are you" — one short answer (prompts/edge.yaml)
+    direct: low                   # triage said a short answer is enough (prompts/edge.yaml direct)
     vision: low                   # one-line description of a picture the user sent (prompts/vision.yaml)
     query_planning: low
     compliance_review: low
@@ -87,7 +87,7 @@ routing:
     tiers: {low: minimal, mid: low, high: medium}
     tasks:
       topic_classification: minimal
-      smalltalk: minimal
+      direct: minimal
       intent_parsing: minimal
       extraction: minimal
       query_planning: minimal

@@ -13,7 +13,9 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from agency_platform.agents.schemas import SESSION_ID_PATTERN, SSE_EXAMPLE, RunResponse
+from agency_platform.agents.sessions import SessionStore
 from agency_platform.auth.deps import AuthenticatedUser, CurrentUser
+from agency_platform.cache import get_redis
 from agency_platform.config.drafts import HEADER as DRAFT_HEADER
 from agency_platform.config.drafts import current_draft
 from agency_platform.config.registry import privacy, prompt_store, topics
@@ -125,8 +127,9 @@ async def chat(body: ChatBody, request: Request, user: CurrentUser):
         # Only spend an LLM classification call if the user can run *something*.
         llm = _gateway_client(user, request) if user.plan_config.topics else None
         conv = await ConversationRepository(get_db()).get(user.id, body.session_id)
-        choice = await choose_topic(prompt, llm, last_topic=(conv or {}).get("last_topic"))
-        if choice.smalltalk and choice.topic is None:   # small talk in a new chat: any assistant the plan has
+        history = await SessionStore(get_redis()).history(user.id, body.session_id)   # triage reads the chat
+        choice = await choose_topic(prompt, llm, last_topic=(conv or {}).get("last_topic"), history=history)
+        if choice.direct and choice.topic is None:   # short answer in a new chat: any assistant the plan has
             choice = replace(choice, topic=next((t for t in enabled if user.plan_config.allows_topic(t)), None))
         if choice.topic is None:
             raise BadRequestError(
@@ -146,8 +149,8 @@ async def chat(body: ChatBody, request: Request, user: CurrentUser):
         "Content-Type": "application/json",
         **({DRAFT_HEADER: str(d.id)} if (d := current_draft()) else {}),   # testing a config draft
     }
-    payload = {"prompt": prompt, "session_id": body.session_id, "stream": body.stream, "smalltalk": choice.smalltalk}
-    routed = {"topic": choice.topic, "confidence": choice.confidence, "method": choice.method}
+    payload = {"prompt": prompt, "session_id": body.session_id, "stream": body.stream, "direct": choice.direct}
+    routed = {"topic": choice.topic, "confidence": choice.confidence, "method": choice.method, "reason": choice.reason}
     http: httpx.AsyncClient = request.app.state.http
     timeout = httpx.Timeout(enabled[choice.topic].run_timeout_s + 30, connect=5)
 

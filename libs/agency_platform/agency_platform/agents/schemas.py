@@ -14,8 +14,8 @@ class RunBody(BaseModel):
     session_id: str = Field("default", pattern=SESSION_ID_PATTERN,
                             description="Conversation id: runs with the same id share memory (follow-ups)")
     stream: bool = Field(True, description="true: Server-Sent Events stream; false: one JSON document (RunResponse)")
-    smalltalk: bool = Field(False, description="Greeting / 'who are you': one short answer, no agent workflow "
-                                               "(set by the edge's router)")
+    direct: bool = Field(False, description="Triage decided a short answer is enough (greeting, 'who are you', a "
+                                            "simple general question): one short call, no agent workflow")
 
 
 class FeedbackBody(BaseModel):

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from edge_gateway.topic_router import choose_topic, is_smalltalk
+from edge_gateway.topic_router import choose_topic
 
 DATASET = Path(__file__).resolve().parents[3] / "evals" / "datasets" / "topic_routing.jsonl"
 CASES = [json.loads(line) for line in DATASET.read_text().splitlines() if line.strip()]
@@ -20,51 +20,51 @@ async def test_unroutable_prompt_without_llm_returns_none():
     assert choice.topic is None and choice.method == "none"
 
 
-@pytest.mark.parametrize("text", ["who are you?", "Hi!", "danke", "what can you do", "Bonjour", "hello there, how are you?"])
-def test_obvious_smalltalk(text):
-    assert is_smalltalk(text)
+class Triage:
+    """A fake triage model: answers what the test says, records what it was shown."""
+    def __init__(self, route, confidence=0.9, fail=None):
+        self.route, self.confidence, self.fail, self.seen = route, confidence, fail, None
+
+    async def structured(self, messages, schema, **kw):
+        self.seen = messages
+        if self.fail:
+            raise self.fail
+        return schema(route=self.route, confidence=self.confidence, reason="test")
 
 
-@pytest.mark.parametrize("text", [
-    "hi, cheapest Model Y wallbox?",                       # keywords → a real question
-    "who are you and is Tesla stock cheap?",
-    "tell me something interesting about volcanoes",        # no phrase
-    "hello " + "word " * 12,                                # too long
-])
-def test_not_smalltalk(text):
-    assert not is_smalltalk(text)
+async def test_triage_decides_direct_for_any_wording():
+    llm = Triage("direct")
+    c = await choose_topic("qui es-tu ?", llm=llm, last_topic="ev_research")
+    assert (c.topic, c.method, c.direct) == ("ev_research", "triage-direct", True)
+    assert "direct" in llm.seen[0]["content"] and "ev_research" in llm.seen[0]["content"]
 
 
-async def test_smalltalk_shortcut_keeps_the_chats_assistant():
-    c = await choose_topic("thanks!", llm=None, last_topic="finance")
-    assert (c.topic, c.method, c.smalltalk) == ("finance", "smalltalk", True)
-    c = await choose_topic("who are you", llm=None)                 # new chat: the edge picks one
-    assert c.topic is None and c.smalltalk
+async def test_triage_sees_the_conversation_for_follow_ups():
+    llm = Triage("ev_research")
+    history = [{"role": "user", "content": "Range of the Kia EV6?", "topic": "ev_research"},
+               {"role": "assistant", "content": "About 528 km WLTP.", "topic": "ev_research"}]
+    c = await choose_topic("and in winter?", llm=llm, last_topic="ev_research", history=history)
+    assert (c.topic, c.method) == ("ev_research", "triage")
+    assert "Range of the Kia EV6?" in llm.seen[1]["content"] and "and in winter?" in llm.seen[1]["content"]
 
 
-async def test_follow_up_stays_without_a_routing_call():
-    class NoLLM:
-        async def structured(self, *a, **k):
-            raise AssertionError("no routing call for a follow-up")
-    c = await choose_topic("and in winter?", llm=NoLLM(), last_topic="ev_research")
+async def test_unknown_route_or_failure_falls_back_to_keywords():
+    from agency_platform.errors import UpstreamError
+    c = await choose_topic("What is the dividend of Microsoft stock?", llm=Triage("weather"))
+    assert (c.topic, c.method) == ("finance", "keywords")
+    c = await choose_topic("and in winter?", llm=Triage("x", fail=UpstreamError("gateway down")), last_topic="ev_research")
     assert (c.topic, c.method) == ("ev_research", "follow-up")
 
 
-async def test_tie_stays_with_the_chats_assistant():
-    # "tesla" (EV) + "stock" (finance): not a clear switch → the chat's assistant keeps it
-    c = await choose_topic("is Tesla stock expensive?", llm=None, last_topic="ev_research")
-    assert c.topic == "ev_research"
+async def test_slow_triage_never_blocks(monkeypatch):
+    import asyncio
 
+    from edge_gateway import topic_router as tr
 
-async def test_clear_keywords_switch_away_from_the_chats_assistant():
-    c = await choose_topic("What is the dividend of Microsoft stock?", llm=None, last_topic="ev_research")
-    assert c.topic == "finance" and c.method == "keywords"
-
-
-async def test_routing_model_can_say_smalltalk():
-    class LLM:
-        async def structured(self, messages, schema, **k):
-            assert "smalltalk" in messages[0]["content"]
-            return schema(topic="smalltalk", confidence=0.9)
-    c = await choose_topic("could you introduce yourself briefly", llm=LLM())
-    assert c.smalltalk and c.method == "llm-smalltalk"
+    class Slow:
+        async def structured(self, *a, **k):
+            await asyncio.sleep(5)
+    cfg = tr.topics()
+    monkeypatch.setattr(cfg.routing, "triage_timeout_s", 0.05)
+    c = await choose_topic("What is the dividend of Microsoft stock?", llm=Slow())
+    assert c.method == "keywords"

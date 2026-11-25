@@ -70,20 +70,12 @@ class TopicConfig(BaseModel):
     response_cache_ttl_s: int = Field(default=0, ge=0)
 
 
-class SmalltalkConfig(BaseModel):
-    """Shortcut for obvious small talk (no routing call, one short answer). Anything not matched still works —
-    it just takes the normal path, where the routing model can also say "smalltalk"."""
-    enabled: bool = True
-    max_words: int = Field(8, ge=1, le=30)
-    phrases: list[str] = Field(default_factory=list, description="matched as whole words, case-insensitive")
-
-
 class TopicRoutingConfig(BaseModel):
     keyword_min_hits: int = 1
     llm_fallback: bool = True
     default_topic: str | None = None
-    sticky_follow_ups: bool = Field(True, description="a follow-up without clear keywords stays with the chat's assistant")
-    smalltalk: SmalltalkConfig = SmalltalkConfig()
+    triage: bool = Field(True, description="one fast call decides: direct answer or which assistant (with the chat's context)")
+    triage_timeout_s: float = Field(3.0, gt=0, le=15, description="slower than this → keywords decide (routing never hangs)")
 
 
 class TopicsFile(BaseModel):

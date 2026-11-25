@@ -57,7 +57,7 @@ class RunRequest:
     prompt: str
     session_id: str
     request_id: str
-    smalltalk: bool = False    # one short answer, no agent workflow (edge router: greetings, "who are you")
+    direct: bool = False       # triage: a short answer is enough → one short call, no agent workflow
 
 
 class _InjectionVerdict(BaseModel):
@@ -160,8 +160,8 @@ class TopicRunner:
             lines.append(line)
         return question + marker + "\n".join(lines)
 
-    async def _smalltalk(self, ctx: RunContext, req: RunRequest) -> str:
-        p = self._prompts.get("edge", "smalltalk", subject=ctx.user.id)
+    async def _direct(self, ctx: RunContext, req: RunRequest) -> str:
+        p = self._prompts.get("edge", "direct", subject=ctx.user.id)
         allowed = [t for name, t in topics().enabled().items() if req.user.plan_config.allows_topic(name)]
         assistants = "\n".join(f"- {t.display_name}: {t.description}" for t in allowed) or "- (none in this plan yet)"
         recent = [{"role": m["role"], "content": m["content"][:500]} for m in ctx.history[-4:]
@@ -169,7 +169,7 @@ class TopicRunner:
         result = await ctx.llm.chat(
             [{"role": "system", "content": p.system.format(assistants=assistants)}, *recent,
              {"role": "user", "content": req.prompt[:1000]}],
-            task="smalltalk", prompt=p,
+            task="direct", prompt=p,
         )
         return result.content.strip() or "Hi! Ask me about electric cars, products and prices, or stocks."
 
@@ -279,8 +279,8 @@ class TopicRunner:
                 CACHE_EVENTS.labels("response", self.topic, "miss").inc()
 
             ctx = self._build_context(req, cfg, history, summary)
-            if req.smalltalk:                    # fast path: one cheap call, still remembered like any answer
-                text = await self._smalltalk(ctx, req)
+            if req.direct:                       # triage: one cheap call, still remembered like any answer
+                text = await self._direct(ctx, req)
                 answer_parts.append(text)
                 await emit(AgentEvent.answer(text))
                 return
