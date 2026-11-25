@@ -12,6 +12,7 @@ from edge_gateway.routes_chat import router as chat_router
 from edge_gateway.routes_chat import topics_router
 from edge_gateway.routes_conversations import conversations_router
 from edge_gateway.routes_dashboard import admin_dashboard_router, dashboard_router
+from edge_gateway.routes_images import images_router
 from edge_gateway.routes_usage import usage_router
 
 settings = get_settings()
@@ -73,6 +74,7 @@ app = create_service_app(
             (auth_router, "/api/v1/auth"),
             (chat_router, "/api/v1/chat"),
             (conversations_router, "/api/v1/conversations"),
+            (images_router, "/api/v1/images"),
             (topics_router, "/api/v1/topics"),
             (usage_router, "/api/v1/usage"),
             (dashboard_router, "/api/v1/dashboard"),

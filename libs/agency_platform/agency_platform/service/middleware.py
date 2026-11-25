@@ -68,15 +68,20 @@ class SecurityHeadersMiddleware:
         async def send_wrapper(message: Message) -> None:
             if message["type"] == "http.response.start":
                 h = message.setdefault("headers", [])
-                h.append((b"x-content-type-options", b"nosniff"))
-                h.append((b"x-frame-options", b"DENY"))
-                h.append((b"referrer-policy", b"no-referrer"))
-                h.append((b"permissions-policy", b"camera=(), microphone=(), geolocation=()"))
+                present = {name.lower() for name, _ in h}
+
+                def default(name: bytes, value: bytes) -> None:   # a route's own header wins (e.g. images: cacheable)
+                    if name not in present:
+                        h.append((name, value))
+                default(b"x-content-type-options", b"nosniff")
+                default(b"x-frame-options", b"DENY")
+                default(b"referrer-policy", b"no-referrer")
+                default(b"permissions-policy", b"camera=(), microphone=(), geolocation=()")
                 if not is_docs:
-                    h.append((b"content-security-policy", b"default-src 'none'; frame-ancestors 'none'"))
-                    h.append((b"cache-control", b"no-store"))
+                    default(b"content-security-policy", b"default-src 'none'; frame-ancestors 'none'")
+                    default(b"cache-control", b"no-store")
                 if self.hsts:
-                    h.append((b"strict-transport-security", b"max-age=63072000; includeSubDomains"))
+                    default(b"strict-transport-security", b"max-age=63072000; includeSubDomains")
             await send(message)
 
         await self.app(scope, receive, send_wrapper)

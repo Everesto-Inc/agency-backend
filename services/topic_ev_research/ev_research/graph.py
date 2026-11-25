@@ -14,6 +14,7 @@ Any failure routes straight to log_run so failed runs are audited too.
 import asyncio
 import json
 from typing import Any, Literal, TypedDict
+from urllib.parse import urlsplit
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, StateGraph
@@ -22,6 +23,7 @@ from pydantic import BaseModel
 from agency_platform.agents.base import RunContext
 from agency_platform.errors import AppError
 from agency_platform.tools.fx import RATE_SOURCE
+from agency_platform.tools.images import markdown as images_markdown
 from ev_research import calc, repository
 from ev_research.params import params
 from ev_research.sources import FactSources
@@ -44,6 +46,8 @@ class EVState(TypedDict, total=False):
     fuel_cost: dict[str, Any] | None
     comparison: dict[str, Any] | None
     analysis: str | None
+    wants_images: bool
+    pictures: list[dict[str, str]]
     unavailable: list[str]
     assumptions: list[str]
     needs: list[str]
@@ -63,6 +67,7 @@ class ParsedIntent(BaseModel):
     vehicle_b_model: str | None = None
     vehicle_b_year: int | None = None
     fuel_type: Literal["petrol", "diesel"] | None = None
+    wants_images: bool = False
 
 
 def country_of(code: str | None) -> str | None:
@@ -111,6 +116,7 @@ async def parse_intent(state: EVState, config: RunnableConfig) -> dict[str, Any]
         "country_code": country_of(intent.country_code),
         "annual_mileage_km": km,
         "assumptions": assumptions,
+        "wants_images": intent.wants_images,
         "vehicle_a": {"make": intent.vehicle_a_make, "model": intent.vehicle_a_model,
                       "year": intent.vehicle_a_year, "trim": intent.vehicle_a_trim},
         "vehicle_b": vehicle_b,
@@ -221,6 +227,40 @@ async def synthesize(state: EVState, config: RunnableConfig) -> dict[str, Any]:
     return {"analysis": result.content}
 
 
+async def pictures(state: EVState, config: RunnableConfig) -> dict[str, Any]:
+    """Asked for a picture → the one cached with the specs (searched already), else image search; stored as our
+    copy and appended under the answer as markdown (so it stays in the chat history)."""
+    store = config["configurable"].get("images")
+    if not state.get("wants_images") or store is None:
+        return {}
+    _, sources = _deps(config)
+    found: list[dict[str, str]] = []
+    for vkey, skey in (("vehicle_a", "specs_a"), ("vehicle_b", "specs_b")):
+        vehicle, specs = state.get(vkey), state.get(skey) or {}
+        if not vehicle:
+            continue
+        alt = f"{vehicle.get('year', '')} {vehicle.get('make', '')} {vehicle.get('model', '')}".strip()
+        candidates = [specs["image_url"]] if specs.get("image_url") else []
+        from_search = not candidates
+        if from_search:
+            try:
+                candidates = await sources.image_candidates(vehicle["make"], vehicle["model"], vehicle["year"])
+            except AppError:
+                candidates = []
+        for url in candidates:
+            path = await store.save_from_url(url, alt=alt)
+            if path:
+                found.append({"path": path, "alt": alt, "source": urlsplit(url).hostname or ""})
+                if from_search:
+                    await repository.set_image_url(vehicle["make"], vehicle["model"], vehicle["year"],
+                                                   vehicle.get("trim", ""), url)
+                break
+    if not found:
+        note = "\n\n*I couldn't find a usable picture this time.*"
+        return {"analysis": (state.get("analysis") or "") + note, "pictures": []}
+    return {"analysis": f"{state.get('analysis') or ''}\n\n{images_markdown(found)}", "pictures": found}
+
+
 async def log_run(state: EVState, config: RunnableConfig) -> dict[str, Any]:
     ctx, _ = _deps(config)
     va = state.get("vehicle_a") or {}
@@ -247,11 +287,13 @@ def build_graph():
     g.add_node("retrieve", retrieve)
     g.add_node("calculate", calculate)
     g.add_node("synthesize", synthesize)
+    g.add_node("pictures", pictures)
     g.add_node("log_run", log_run)
     g.set_entry_point("parse_intent")
     g.add_conditional_edges("parse_intent", _ok_or_log("retrieve"), ["retrieve", "log_run"])
     g.add_conditional_edges("retrieve", _ok_or_log("calculate"), ["calculate", "log_run"])
     g.add_edge("calculate", "synthesize")
-    g.add_edge("synthesize", "log_run")
+    g.add_edge("synthesize", "pictures")
+    g.add_edge("pictures", "log_run")
     g.add_edge("log_run", END)
     return g.compile()

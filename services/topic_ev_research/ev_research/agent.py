@@ -6,7 +6,9 @@ from fastapi import FastAPI
 
 from agency_platform.agents.base import AgentEvent, RunContext, TopicAgent
 from agency_platform.cache import get_redis
+from agency_platform.db import get_db
 from agency_platform.tools.fx import FXRates
+from agency_platform.tools.images import ImageStore
 from ev_research.graph import build_graph
 from ev_research.params import params
 from ev_research.sources import CrawlerPool, FactSources, build_search
@@ -16,6 +18,7 @@ _STATUS = {
     "retrieve": "Retrieved specs (and local energy prices when the country is known) — cache or verified crawl",
     "calculate": "Computed running costs deterministically",
     "synthesize": "Wrote the grounded answer",
+    "pictures": "Added a picture",
 }
 
 
@@ -28,11 +31,13 @@ class EVResearchAgent(TopicAgent):
         self._graph = None
         self._sources: FactSources | None = None
         self._fx: FXRates | None = None
+        self._images: ImageStore | None = None
 
     async def startup(self, app: FastAPI) -> None:
         await self._crawler.start()
         self._sources = FactSources(self._crawler, build_search(app.state.http))
         self._fx = FXRates(app.state.http, get_redis(), lambda: (params().fx.url, params().fx.cache_ttl_s))
+        self._images = ImageStore(get_db(), app.state.http)
         self._graph = build_graph()
 
     async def shutdown(self) -> None:
@@ -41,7 +46,7 @@ class EVResearchAgent(TopicAgent):
     async def run(self, prompt: str, ctx: RunContext) -> AsyncIterator[AgentEvent]:
         assert self._graph is not None and self._sources is not None
         config = {
-            "configurable": {"ctx": ctx, "sources": self._sources, "fx": self._fx},
+            "configurable": {"ctx": ctx, "sources": self._sources, "fx": self._fx, "images": self._images},
             "run_name": "ev_research",
             "metadata": {"request_id": ctx.request_id, "user_plan": ctx.user.plan},  # LangSmith
             "tags": ["topic:ev_research"],
@@ -53,7 +58,7 @@ class EVResearchAgent(TopicAgent):
                 final.update(out)
                 if out.get("error"):
                     yield AgentEvent.error(out["error"], code="EV_PIPELINE_ERROR", node=node)
-                elif node in _STATUS:
+                elif node in _STATUS and (node != "pictures" or out):  # no picture asked → no status line
                     yield AgentEvent.status(_STATUS[node], node=node)
 
         if final.get("error"):

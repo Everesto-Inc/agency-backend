@@ -26,6 +26,9 @@ class FakeSources:
             raise UpstreamError("no verifiable data")
         return dict(SPECS)
 
+    async def image_candidates(self, make, model, year):
+        return ["https://img.example/search-hit.jpg"]
+
     async def country_price(self, country, metric, ctx):
         self.price_calls.append((country, metric))
         if self.fail == "price":
@@ -56,10 +59,20 @@ class FakeFX:
         return round(amount * 1.17, 2) if (from_ccy, to_ccy) == ("EUR", "GBP") else None
 
 
-async def run(llm, sources, query="Model 3 vs diesel in France, 20000 km", fx=None):
+class FakeImages:
+    def __init__(self, usable=True):
+        self.usable, self.saved = usable, []
+
+    async def save_from_url(self, url, alt=""):
+        self.saved.append((url, alt))
+        return f"/api/v1/images/{len(self.saved):064d}" if self.usable else None
+
+
+async def run(llm, sources, query="Model 3 vs diesel in France, 20000 km", fx=None, images=None):
     ctx = fake_context("ev_research", llm, ROOT / "prompts")
     g = graph.build_graph()
-    return await g.ainvoke({"query": query}, config={"configurable": {"ctx": ctx, "sources": sources, "fx": fx}})
+    return await g.ainvoke({"query": query},
+                           config={"configurable": {"ctx": ctx, "sources": sources, "fx": fx, "images": images}})
 
 
 async def test_full_pipeline_grounded_and_tiered(no_db):
@@ -157,3 +170,42 @@ async def test_parse_gets_summary_and_clean_memory_messages(no_db):
     parse = llm.calls[0]["messages"]
     assert "drives 20,000 km" in parse[0]["content"]                        # summary in the instructions
     assert parse[1] == {"role": "user", "content": "I live in France"}      # only role + content to the model
+
+
+
+async def test_picture_from_the_cached_specs_first(no_db, monkeypatch):
+    remembered = []
+
+    async def set_image_url(*a):
+        remembered.append(a)
+    monkeypatch.setattr(repository, "set_image_url", set_image_url)
+    monkeypatch.setitem(SPECS, "image_url", "https://cdn.example/model-3.jpg")
+    images = FakeImages()
+    llm = FakeLLM({"intent_parsing": intent("single") | {"wants_images": True}, "synthesis": "specs"})
+    state = await run(llm, FakeSources(), images=images, query="show me the Model 3")
+    assert images.saved == [("https://cdn.example/model-3.jpg", "2024 Tesla Model 3")]   # searched already → no search
+    assert state["analysis"].startswith("specs") and "![2024 Tesla Model 3](/api/v1/images/" in state["analysis"]
+    assert "*Picture: cdn.example*" in state["analysis"] and remembered == []
+
+
+async def test_picture_search_fallback_is_remembered(no_db, monkeypatch):
+    remembered = []
+
+    async def set_image_url(*a):
+        remembered.append(a)
+    monkeypatch.setattr(repository, "set_image_url", set_image_url)
+    images = FakeImages()
+    llm = FakeLLM({"intent_parsing": intent("single") | {"wants_images": True}, "synthesis": "specs"})
+    state = await run(llm, FakeSources(), images=images)
+    assert images.saved[0][0] == "https://img.example/search-hit.jpg"
+    assert remembered == [("Tesla", "Model 3", 2024, "", "https://img.example/search-hit.jpg")]
+    assert len(state["pictures"]) == 1
+
+
+async def test_no_picture_unless_asked_and_honest_when_none(no_db):
+    images = FakeImages()
+    state = await run(FakeLLM({"intent_parsing": intent("single"), "synthesis": "specs"}), FakeSources(), images=images)
+    assert images.saved == [] and state["analysis"] == "specs"
+    none = await run(FakeLLM({"intent_parsing": intent("single") | {"wants_images": True}, "synthesis": "specs"}),
+                     FakeSources(), images=FakeImages(usable=False))
+    assert "couldn't find a usable picture" in none["analysis"]

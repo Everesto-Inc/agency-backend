@@ -57,3 +57,23 @@ class WebSearch:
             for r in resp.json().get("results", [])
             if r.get("url")
         ]
+
+
+    async def images(self, query: str, *, max_results: int = 5) -> list[str]:
+        """Image results for a query (addresses only) — e.g. "2024 Tesla Model Y exterior photo"."""
+        if not self._key:
+            raise ServiceUnavailableError("Web search is not configured (TAVILY_API_KEY missing)")
+        body = {"query": query[:400], "max_results": max_results, "search_depth": "basic", "include_images": True}
+        try:
+            resp = await self._http.post(
+                _TAVILY_URL, json=body, headers={"Authorization": f"Bearer {self._key}"}, timeout=20
+            )
+            resp.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise UpstreamError(f"Image search failed: {type(exc).__name__}") from exc
+        out = []
+        for img in resp.json().get("images", []):
+            url = img.get("url") if isinstance(img, dict) else img
+            if isinstance(url, str) and url.startswith("https://"):
+                out.append(url)
+        return out[:max_results]

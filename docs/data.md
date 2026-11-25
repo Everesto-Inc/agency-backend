@@ -68,3 +68,11 @@ Browse it: [redis.everesto.live](https://redis.everesto.live) (GitHub login, pla
     which puts `REDIS_KEY_PREFIX` in front (empty locally) — e.g. `orchid-agency-backend:usage:tok:…`.
     New Redis code must build its keys with `rkey()` too, or the shared Redis answers `NOPERM`.
 
+
+## Pictures in answers
+
+Ask EV Helper *"show me a picture of the Model Y"* → it uses the picture already found with the cached specs
+(`ev_model_specs.image_url`, no new search); otherwise one image search, remembered for next time.
+The picture is **downloaded once** (public address only, real image, ≤ 1.5 MB, no redirects), stored in MySQL
+`images` (id = sha256 of the source address) and served by `GET /api/v1/images/<id>` — cacheable, only stored
+pictures, not an open proxy. The chat shows only `/api/v1/images/<id>` pictures, never third-party links.

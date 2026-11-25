@@ -134,6 +134,10 @@ class FactSources:
         self._crawler = crawler
         self._search = search
 
+    async def image_candidates(self, make: str, model: str, year: int) -> list[str]:
+        """Image search fallback when the spec page had no usable picture."""
+        return await self._search.images(f"{year} {make} {model} electric car exterior photo", max_results=4)
+
     async def _candidate_urls(self, query: str) -> list[str]:
         results = await self._search.search(query, max_results=params().crawl.candidate_sources)
         return [r.url for r in results]

@@ -75,6 +75,15 @@ async def store_specs(make: str, model: str, year: int, trim: str, data: dict[st
     )
 
 
+async def set_image_url(make: str, model: str, year: int, trim: str, image_url: str) -> None:
+    """Remember a picture found by image search with the cached specs (next time: no search)."""
+    await get_db().execute(
+        """UPDATE ev_model_specs SET image_url = %s
+           WHERE make = %s AND model = %s AND year = %s AND `trim` = %s AND image_url IS NULL""",
+        (image_url, _norm(make), _norm(model), year, _norm(trim)),
+    )
+
+
 async def log_run(
     *, request_id: str, user_id: str, session_id: str, query: str, parsed_model: str | None,
     parsed_year: int | None, specs_source_url: str | None, tco_inputs: dict, tco_result: dict, final_output: str,

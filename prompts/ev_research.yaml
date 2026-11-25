@@ -1,4 +1,4 @@
-version: "2.1"
+version: "2.2"
 prompts:
   parse_intent:
     system: |
@@ -16,7 +16,8 @@ prompts:
         "vehicle_b_make": "<only if ev_vs_ev, else null>",
         "vehicle_b_model": "<only if ev_vs_ev, else null>",
         "vehicle_b_year": <only if ev_vs_ev, else null>,
-        "fuel_type": "petrol" | "diesel" | null
+        "fuel_type": "petrol" | "diesel" | null,
+        "wants_images": <true if the user asks to see a picture / photo / image of the car(s), else false>
       }
       "single" = one EV, no comparison. "ev_vs_ev" = two named EVs.
       "ev_vs_fuel" = one EV against a petrol or diesel car.
