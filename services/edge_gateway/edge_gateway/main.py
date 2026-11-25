@@ -10,6 +10,7 @@ from edge_gateway.routes_admin import admin_router
 from edge_gateway.routes_auth import router as auth_router
 from edge_gateway.routes_chat import router as chat_router
 from edge_gateway.routes_chat import topics_router
+from edge_gateway.routes_conversations import conversations_router
 from edge_gateway.routes_dashboard import admin_dashboard_router, dashboard_router
 from edge_gateway.routes_usage import usage_router
 
@@ -40,6 +41,8 @@ TAGS = [
     {"name": "Auth", "description": "Register, log in, refresh and revoke tokens."},
     {"name": "Account", "description": "My account, data export and deletion (GDPR)."},
     {"name": "Chat", "description": "One entry point for every assistant: the question is routed to the right topic."},
+    {"name": "Conversations", "description": "My chat history: list, open (questions + answers), rename, pin, delete. "
+                                             "A conversation id is the `session_id` of POST /chat."},
     {"name": "Topics", "description": "The assistants, what they do, and which ones my plan includes."},
     {"name": "Usage", "description": "My tokens and cost, per topic (live today, plus history)."},
     {"name": "Dashboard", "description": "My monthly usage dashboard: pick a month (GET /dashboard/months), "
@@ -69,6 +72,7 @@ app = create_service_app(
         routers=[
             (auth_router, "/api/v1/auth"),
             (chat_router, "/api/v1/chat"),
+            (conversations_router, "/api/v1/conversations"),
             (topics_router, "/api/v1/topics"),
             (usage_router, "/api/v1/usage"),
             (dashboard_router, "/api/v1/dashboard"),

@@ -18,6 +18,7 @@ Interactive reference for every endpoint: **Backstage → APIs** (each API's *De
 | Auth | `POST /auth/register`, `/login`, `/refresh`, `/logout` | tokens |
 | Account | `GET /auth/me`, `PUT /auth/me/password`, `GET /auth/me/export`, `DELETE /auth/me` | change password (logs out everywhere), GDPR export + erasure |
 | Chat | `POST /chat` | any question, auto-routed |
+| Conversations | `GET /conversations`, `GET /conversations/{id}`, `PATCH /conversations/{id}` (rename, pin), `DELETE /conversations/{id}` | chat history — a conversation id is the `session_id` of `/chat`; send it again to continue |
 | Topics | `GET /topics` | assistants + whether my plan includes them |
 | Usage | `GET /usage/me`, `/usage/me/daily`, `/usage/me/runs` | my tokens + cost |
 | Dashboard | `GET /dashboard/months`, `GET /dashboard?month=YYYY-MM` | one call per screen |

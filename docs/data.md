@@ -10,6 +10,7 @@ Production: OCI HeatWave MySQL. Schema = `migrations/NNNN_*.sql`, applied by the
 | `users` | account (email, role, plan, plan expiry) | edge |
 | `refresh_tokens` | issued refresh token (hashed), with its session family | edge |
 | `agent_runs` | question answered by a topic (status, tokens, cost, latency, PII-redacted prompt/answer, feedback) | topic services |
+| `conversations` | chat history: one row per conversation (id = chat `session_id`, title, pinned, turns) — its messages are that session's `agent_runs` | edge (`/chat`) |
 | `llm_calls` | LLM attempt (model, tier, why, tokens, cost, latency, cache/canary) | model gateway |
 | `usage_daily` | user × topic × day (runs, calls, tokens, cost) — billing / dashboards | gateway + topics |
 | `country_level_info`, `ev_model_specs`, `ev_research_runs` | verified EV facts (cached) and the EV audit log | EV Helper |

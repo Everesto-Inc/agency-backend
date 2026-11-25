@@ -13,12 +13,15 @@ from pydantic import BaseModel, Field
 
 from agency_platform.agents.schemas import SESSION_ID_PATTERN, SSE_EXAMPLE, RunResponse
 from agency_platform.auth.deps import AuthenticatedUser, CurrentUser
-from agency_platform.config.registry import topics
+from agency_platform.config.registry import privacy, topics
 from agency_platform.config.settings import get_settings
+from agency_platform.db import get_db
 from agency_platform.errors import BadRequestError, ServiceUnavailableError
 from agency_platform.llm.call_token import CallClaims, mint_call_token
 from agency_platform.llm.client import ModelGatewayClient
+from agency_platform.repositories import ConversationRepository, title_from_prompt
 from agency_platform.security.content import clean_user_prompt
+from agency_platform.security.pii import redact
 from agency_platform.service import openapi
 from edge_gateway.schemas import TopicSummary
 from edge_gateway.topic_router import TopicChoice, choose_topic
@@ -35,6 +38,15 @@ class ChatBody(BaseModel):
     topic: str | None = Field(default=None, description="Skip auto-routing and use this topic (see GET /topics)",
                               examples=[None])
     stream: bool = Field(True, description="true: Server-Sent Events (first event `routed`); false: one JSON document")
+
+
+async def _remember(user: AuthenticatedUser, session_id: str, prompt: str, topic: str) -> None:
+    """Chat history: create the conversation (title = first question, PII-redacted like stored runs) or bump it."""
+    pii = privacy().pii
+    text = redact(prompt, pii.entities)[0] if pii.redact_in_storage else prompt
+    await ConversationRepository(get_db()).touch(
+        user_id=user.id, conversation_id=session_id, title=title_from_prompt(text), topic=topic
+    )
 
 
 def _gateway_client(user: AuthenticatedUser, request: Request) -> ModelGatewayClient | None:
@@ -100,6 +112,7 @@ async def chat(body: ChatBody, request: Request, user: CurrentUser):
         data = resp.json()
         if resp.status_code == 200:
             data["routing"] = routed
+            await _remember(user, body.session_id, prompt, choice.topic)
         return JSONResponse(data, status_code=resp.status_code, headers=_retry_after(resp))
 
     upstream_req = http.build_request("POST", target, json=payload, headers=headers, timeout=timeout)
@@ -112,6 +125,8 @@ async def chat(body: ChatBody, request: Request, user: CurrentUser):
         content = await upstream.aread()
         await upstream.aclose()
         return JSONResponse(json.loads(content or b"{}"), status_code=upstream.status_code, headers=_retry_after(upstream))
+
+    await _remember(user, body.session_id, prompt, choice.topic)  # accepted by the assistant → in the history
 
     async def relay() -> AsyncIterator[bytes]:
         try:

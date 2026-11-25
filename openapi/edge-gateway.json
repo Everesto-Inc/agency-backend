@@ -439,6 +439,218 @@
         "title": "ChatBody",
         "type": "object"
       },
+      "Conversation": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "= the session_id sent to POST /chat; send it again to continue the conversation",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Topic"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationMessage"
+            },
+            "title": "Messages",
+            "type": "array"
+          },
+          "pinned": {
+            "title": "Pinned",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "turns": {
+            "description": "Questions asked in this conversation",
+            "title": "Turns",
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "pinned",
+          "turns",
+          "last_topic",
+          "created_at",
+          "updated_at",
+          "messages"
+        ],
+        "title": "Conversation",
+        "type": "object"
+      },
+      "ConversationMessage": {
+        "properties": {
+          "answer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "PII-redacted; null after the retention period or while running",
+            "title": "Answer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "PII-redacted; null after the retention period (config/privacy.yaml)",
+            "title": "Prompt"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "status": {
+            "description": "running | success | error | timeout | cancelled",
+            "title": "Status",
+            "type": "string"
+          },
+          "topic": {
+            "title": "Topic",
+            "type": "string"
+          },
+          "total_tokens": {
+            "title": "Total Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "request_id",
+          "topic",
+          "prompt",
+          "answer",
+          "status",
+          "created_at",
+          "total_tokens",
+          "cost_usd"
+        ],
+        "title": "ConversationMessage",
+        "type": "object"
+      },
+      "ConversationSummary": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "= the session_id sent to POST /chat; send it again to continue the conversation",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Topic"
+          },
+          "pinned": {
+            "title": "Pinned",
+            "type": "boolean"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "turns": {
+            "description": "Questions asked in this conversation",
+            "title": "Turns",
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "pinned",
+          "turns",
+          "last_topic",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ConversationSummary",
+        "type": "object"
+      },
+      "ConversationUpdate": {
+        "properties": {
+          "pinned": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pinned"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "title": "ConversationUpdate",
+        "type": "object"
+      },
       "Credentials": {
         "properties": {
           "email": {
@@ -4839,6 +5051,340 @@
         ]
       }
     },
+    "/api/v1/conversations": {
+      "get": {
+        "operationId": "list_conversations",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Only titles containing this text",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only titles containing this text",
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConversationSummary"
+                  },
+                  "title": "Response List Conversations",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or daily quota reached (codes RATE_LIMITED / QUOTA_EXCEEDED); see the Retry-After header"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "My conversations (pinned first, then most recent)",
+        "tags": [
+          "Conversations"
+        ]
+      }
+    },
+    "/api/v1/conversations/{conversation_id}": {
+      "delete": {
+        "description": "Gone from the history, questions/answers erased, assistant memory forgotten. Usage (tokens, cost) is kept.",
+        "operationId": "delete_conversation",
+        "parameters": [
+          {
+            "description": "The conversation (= chat session_id)",
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "description": "The conversation (= chat session_id)",
+              "pattern": "^[A-Za-z0-9\\-_]{1,64}$",
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or daily quota reached (codes RATE_LIMITED / QUOTA_EXCEEDED); see the Retry-After header"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Delete a conversation (its text is erased)",
+        "tags": [
+          "Conversations"
+        ]
+      },
+      "get": {
+        "description": "Continue it by sending POST /chat with `session_id` = this id.",
+        "operationId": "get_conversation",
+        "parameters": [
+          {
+            "description": "The conversation (= chat session_id)",
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "description": "The conversation (= chat session_id)",
+              "pattern": "^[A-Za-z0-9\\-_]{1,64}$",
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conversation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or daily quota reached (codes RATE_LIMITED / QUOTA_EXCEEDED); see the Retry-After header"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "One conversation with its questions and answers",
+        "tags": [
+          "Conversations"
+        ]
+      },
+      "patch": {
+        "operationId": "update_conversation",
+        "parameters": [
+          {
+            "description": "The conversation (= chat session_id)",
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "description": "The conversation (= chat session_id)",
+              "pattern": "^[A-Za-z0-9\\-_]{1,64}$",
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversationUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or daily quota reached (codes RATE_LIMITED / QUOTA_EXCEEDED); see the Retry-After header"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Rename or pin a conversation",
+        "tags": [
+          "Conversations"
+        ]
+      }
+    },
     "/api/v1/dashboard": {
       "get": {
         "description": "Totals, change vs the previous month, per-topic breakdown, a gap-free daily series,\nrun stats, recent runs and (for the current month) live quota status. Only your own data.",
@@ -5265,6 +5811,10 @@
     {
       "description": "One entry point for every assistant: the question is routed to the right topic.",
       "name": "Chat"
+    },
+    {
+      "description": "My chat history: list, open (questions + answers), rename, pin, delete. A conversation id is the `session_id` of POST /chat.",
+      "name": "Conversations"
     },
     {
       "description": "The assistants, what they do, and which ones my plan includes.",

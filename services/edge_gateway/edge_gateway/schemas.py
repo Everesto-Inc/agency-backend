@@ -433,3 +433,36 @@ class AdminDashboard(BaseModel):
 
 
 UserDashboard.model_rebuild()
+
+
+# ------------------------------------------------------------------ conversations (chat history)
+
+
+class ConversationSummary(BaseModel):
+    id: str = Field(..., description="= the session_id sent to POST /chat; send it again to continue the conversation")
+    title: str
+    pinned: bool
+    turns: int = Field(..., description="Questions asked in this conversation")
+    last_topic: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ConversationMessage(BaseModel):
+    request_id: str
+    topic: str
+    prompt: str | None = Field(..., description="PII-redacted; null after the retention period (config/privacy.yaml)")
+    answer: str | None = Field(..., description="PII-redacted; null after the retention period or while running")
+    status: str = Field(..., description="running | success | error | timeout | cancelled")
+    created_at: datetime
+    total_tokens: int
+    cost_usd: float
+
+
+class Conversation(ConversationSummary):
+    messages: list[ConversationMessage]
+
+
+class ConversationUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    pinned: bool | None = None

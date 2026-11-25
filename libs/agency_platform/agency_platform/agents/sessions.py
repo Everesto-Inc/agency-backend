@@ -35,6 +35,13 @@ class SessionStore:
             p.expire(key, self._ttl)
             await p.execute()
 
+    async def forget_session(self, user_id: str, session_id: str) -> int:
+        """Delete one conversation's memory, for every topic (conversation deleted from the history)."""
+        deleted = 0
+        async for key in self._r.scan_iter(match=rkey(f"sess:{user_id}:*:{session_id}"), count=500):
+            deleted += await self._r.delete(key)
+        return deleted
+
     async def forget_user(self, user_id: str) -> int:
         """Delete every session of a user (account erasure)."""
         deleted = 0
