@@ -64,12 +64,12 @@ class ScriptedAgent(TopicAgent):
         yield AgentEvent.answer(f"answer to {prompt}")
 
 
-def make_runner(agent, redis, runs, heartbeat=15.0, cache=False):
+def make_runner(agent, redis, runs, heartbeat=15.0, cache=False, conversations=None):
     settings = PlatformSettings(model_gateway_client_secret="c" * 40)
     return TopicRunner(
         agent, settings, runs=runs, meter=UsageMeter(redis), limiter=RateLimiter(redis),
         sessions=SessionStore(redis), prompts=PromptStore(ROOT / "prompts"), http=httpx.AsyncClient(),
-        cache=ResponseCache(redis) if cache else None, heartbeat_s=heartbeat,
+        cache=ResponseCache(redis) if cache else None, heartbeat_s=heartbeat, conversations=conversations,
     )
 
 
@@ -236,3 +236,58 @@ async def test_memory_reload_failure_never_breaks_the_answer(redis):
     runs.fail_reload = True
     events = await collect(make_runner(HistoryAgent(), redis, runs), RunRequest(user(), "q", "chat-3", "req-mem-00005"))
     assert events[-1].data["status"] == "success"
+
+
+class FakeConversations:
+    def __init__(self, summary=None, upto=None):
+        self.value, self.upto, self.saved = summary, upto, []
+
+    async def summary(self, user_id, conversation_id):
+        return self.value, self.upto
+
+    async def set_summary(self, user_id, conversation_id, summary, upto):
+        self.saved.append((summary, upto))
+
+
+class SummaryAgent(HistoryAgent):
+    async def run(self, prompt, ctx):
+        self.seen.append([{"summary": ctx.summary}])
+        yield AgentEvent.answer(f"answer to {prompt}")
+
+
+async def test_summary_reaches_the_agent_and_is_updated_after_the_answer(redis, monkeypatch):
+    convs = FakeConversations(summary="- user lives in Germany")
+    agent = SummaryAgent()
+    runner = make_runner(agent, redis, FakeRuns(), conversations=convs)
+    written = []
+
+    async def fake_write(ctx, previous, fold):
+        written.append((previous, [m["content"] for m in fold]))
+        return "- user lives in Germany\n- compared Model Y and Ioniq 5"
+
+    monkeypatch.setattr(runner, "_write_summary", fake_write)
+    for i in range(5):  # 5 questions → 10 messages → 6 older than the last 4
+        await collect(runner, RunRequest(user(), f"q{i}", "chat-s", f"req-sum-0000{i}"))
+        await asyncio.gather(*runner._background)
+    assert agent.seen[0] == [{"summary": "- user lives in Germany"}]
+    assert len(written) == 1 and written[0][0] == "- user lives in Germany"
+    assert written[0][1] == ["q0", "answer to q0", "q1", "answer to q1", "q2", "answer to q2"]
+    assert convs.saved[0][0].endswith("Ioniq 5") and convs.saved[0][1] is not None
+
+
+async def test_no_summary_without_conversations_or_on_failure(redis, monkeypatch):
+    runner = make_runner(SummaryAgent(), redis, FakeRuns())   # conversations=None → feature off
+    await collect(runner, RunRequest(user(), "q", "chat-t", "req-sum-00010"))
+    assert runner._background == set()
+    convs = FakeConversations()
+    broken = make_runner(SummaryAgent(), redis, FakeRuns(), conversations=convs)
+
+    async def boom(*a):
+        raise RuntimeError("gateway down")
+
+    monkeypatch.setattr(broken, "_write_summary", boom)
+    await redis.delete("sess:" + UID + ":chat-u")
+    for i in range(5):
+        events = await collect(broken, RunRequest(user(), f"q{i}", "chat-u", f"req-sum-0010{i}"))
+        await asyncio.gather(*broken._background)
+    assert events[-1].data["status"] == "success" and convs.saved == []

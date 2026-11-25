@@ -30,7 +30,7 @@ class FinanceAgent(TopicAgent):
         assert self._market is not None
         tools = FinanceTools(self._market)
         team = build_team(ctx, tools, self._client_factory)
-        task = with_history(prompt, ctx.history)
+        task = with_history(prompt, ctx.history, summary=ctx.summary)
 
         analysis: str | None = None
         approved = False

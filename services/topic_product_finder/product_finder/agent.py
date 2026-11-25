@@ -36,7 +36,7 @@ class ProductFinderAgent(TopicAgent):
     async def run(self, prompt: str, ctx: RunContext) -> AsyncIterator[AgentEvent]:
         assert self._search is not None and self._fx is not None
         # the chat's last messages go along: "and in France?" refers to the product asked before
-        plan = await self._crews.plan(with_history(prompt, ctx.history), default_country="US", ctx=ctx)
+        plan = await self._crews.plan(with_history(prompt, ctx.history, summary=ctx.summary), default_country="US", ctx=ctx)
         yield AgentEvent.status(f"Looking for: {plan.product} ({plan.country_code}, {plan.currency})",
                                 step="plan", must_match=plan.must_match)
 

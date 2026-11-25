@@ -144,3 +144,16 @@ async def test_foreign_car_price_converted_original_kept(no_db):
 
 def test_country_codes_are_validated():
     assert (graph.country_of("fr"), graph.country_of(" de "), graph.country_of(None), graph.country_of("USA")) == ("FR", "DE", None, None)
+
+
+async def test_parse_gets_summary_and_clean_memory_messages(no_db):
+    from agency_platform.testing import fake_context
+    llm = FakeLLM({"intent_parsing": intent(), "synthesis": "ok"})
+    ctx = fake_context("ev_research", llm, ROOT / "prompts",
+                       history=[{"role": "user", "content": "I live in France", "topic": "finance", "at": "2026-11-25T10:00:00+00:00"}])
+    ctx.summary = "- user drives 20,000 km a year"
+    await graph.build_graph().ainvoke({"query": "and the Model 3?"},
+                                      config={"configurable": {"ctx": ctx, "sources": FakeSources(), "fx": None}})
+    parse = llm.calls[0]["messages"]
+    assert "drives 20,000 km" in parse[0]["content"]                        # summary in the instructions
+    assert parse[1] == {"role": "user", "content": "I live in France"}      # only role + content to the model

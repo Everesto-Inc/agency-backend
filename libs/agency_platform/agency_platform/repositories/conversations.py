@@ -1,11 +1,13 @@
 """Chat history. A conversation's id is the chat session_id (per user); its messages are that session's agent_runs."""
 import re
+from datetime import datetime
 from typing import Any
 
 from agency_platform.db import Database
 
 _COLS = "id, title, pinned, turns, last_topic, created_at, updated_at"
 TITLE_MAX = 200
+SUMMARY_MAX = 2000
 
 
 def title_from_prompt(prompt: str, limit: int = 80) -> str:
@@ -59,6 +61,19 @@ class ConversationRepository:
                FROM agent_runs WHERE user_id = %s AND session_id = %s
                ORDER BY created_at LIMIT %s""",
             (user_id, conversation_id, limit),
+        )
+
+    async def summary(self, user_id: str, conversation_id: str) -> tuple[str | None, datetime | None]:
+        """The running summary of the chat's older messages, and up to which message time it reaches."""
+        row = await self._db.fetchrow(
+            "SELECT summary, summary_upto FROM conversations WHERE user_id = %s AND id = %s", (user_id, conversation_id)
+        )
+        return (row["summary"], row["summary_upto"]) if row else (None, None)
+
+    async def set_summary(self, user_id: str, conversation_id: str, summary: str, upto: datetime) -> None:
+        await self._db.execute(
+            "UPDATE conversations SET summary = %s, summary_upto = %s WHERE user_id = %s AND id = %s",
+            (summary[:SUMMARY_MAX], upto, user_id, conversation_id),
         )
 
     async def update(self, user_id: str, conversation_id: str, *, title: str | None, pinned: bool | None) -> bool:

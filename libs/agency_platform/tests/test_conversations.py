@@ -7,7 +7,9 @@ import fakeredis.aioredis
 ROOT = Path(__file__).resolve().parents[3]
 os.environ.setdefault("CONFIG_DIR", str(ROOT / "config"))
 
-from agency_platform.agents.sessions import SessionStore, turns_from_runs, with_history
+from datetime import UTC, datetime
+
+from agency_platform.agents.sessions import SessionStore, messages_to_fold, turns_from_runs, with_history
 from agency_platform.repositories import ConversationRepository, title_from_prompt
 
 U = "6f1c2c1e-3b9d-4a51-9a52-0b5a4c1d2e3f"
@@ -81,8 +83,50 @@ async def test_forget_session_only_touches_that_conversation():
 
 
 def test_turns_from_runs_and_with_history():
-    turns = turns_from_runs([{"topic": "finance", "prompt": "Q1", "answer": "A1"}, {"topic": "ev", "prompt": "Q2", "answer": None}])
-    assert turns == [{"role": "user", "content": "Q1", "topic": "finance"}, {"role": "assistant", "content": "A1", "topic": "finance"}]
+    at = datetime(2026, 11, 25, 10, 0, tzinfo=UTC)
+    turns = turns_from_runs([{"topic": "finance", "prompt": "Q1", "answer": "A1", "created_at": at},
+                             {"topic": "ev", "prompt": "Q2", "answer": None}])
+    assert turns == [{"role": "user", "content": "Q1", "topic": "finance", "at": at.isoformat()},
+                     {"role": "assistant", "content": "A1", "topic": "finance", "at": at.isoformat()}]
     assert with_history("new?", []) == "new?"
     text = with_history("and in France?", [*turns, {"role": "system", "content": "x"}])
     assert text.startswith("Earlier conversation:\nuser: Q1\nassistant: A1") and text.endswith("User question: and in France?")
+
+
+
+def _msgs(n):  # n messages, one minute apart
+    return [{"role": "user" if i % 2 == 0 else "assistant", "content": f"m{i}",
+             "at": datetime(2026, 11, 25, 10, i, tzinfo=UTC).isoformat()} for i in range(n)]
+
+
+def test_fold_only_older_messages_not_yet_summarized_and_in_batches():
+    assert messages_to_fold(_msgs(9), None) == []                       # 5 older than the last 4 → < 6, wait
+    fold = messages_to_fold(_msgs(10), None)
+    assert [m["content"] for m in fold] == ["m0", "m1", "m2", "m3", "m4", "m5"]   # never the last 4
+    upto = datetime(2026, 11, 25, 10, 5)                                # MySQL gives naive UTC
+    assert messages_to_fold(_msgs(14), upto) == []                      # m6..m9 only → < 6
+    assert [m["content"] for m in messages_to_fold(_msgs(16), upto)] == [f"m{i}" for i in range(6, 12)]
+    assert messages_to_fold([{"role": "user", "content": "no time"}] * 10, None) == []
+
+
+def test_with_history_puts_the_summary_first():
+    text = with_history("and the price?", _msgs(2), summary="- user in Germany")
+    assert text.index("Summary of the earlier conversation") < text.index("Earlier conversation:") < text.index("User question")
+    assert with_history("q", [], summary="- s").startswith("Summary of the earlier conversation:\n- s")
+
+
+async def test_append_stamps_messages():
+    import fakeredis.aioredis
+    store = SessionStore(fakeredis.aioredis.FakeRedis(decode_responses=True))
+    await store.append(U, "c1", {"role": "user", "content": "x"})
+    assert (await store.history(U, "c1"))[0]["at"].startswith("20")
+
+
+async def test_summary_sql():
+    db = FakeDb(rows=[{"summary": "- s", "summary_upto": datetime(2026, 11, 25, 10, 5)}])
+    repo = ConversationRepository(db)
+    assert await repo.summary(U, "c1") == ("- s", datetime(2026, 11, 25, 10, 5))
+    await repo.set_summary(U, "c1", "x" * 3000, datetime(2026, 11, 25, 11, 0))
+    sql, args = db.calls[-1]
+    assert sql.startswith("UPDATE conversations SET summary") and len(args[0]) == 2000 and args[2:] == (U, "c1")
+    assert await ConversationRepository(FakeDb()).summary(U, "none") == (None, None)

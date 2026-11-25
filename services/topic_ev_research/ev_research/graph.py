@@ -79,10 +79,11 @@ def _deps(config: RunnableConfig) -> tuple[RunContext, FactSources]:
 async def parse_intent(state: EVState, config: RunnableConfig) -> dict[str, Any]:
     ctx, _ = _deps(config)
     p = ctx.prompt("parse_intent")
-    history = [m for m in ctx.history[-4:] if m["role"] in ("user", "assistant")]
+    history = [{"role": m["role"], "content": m["content"]} for m in ctx.history[-4:] if m["role"] in ("user", "assistant")]
+    system = p.system + (f"\n\nSummary of the earlier conversation (context only):\n{ctx.summary}" if ctx.summary else "")
     try:
         intent = await ctx.llm.structured(
-            [{"role": "system", "content": p.system}, *history, {"role": "user", "content": state["query"]}],
+            [{"role": "system", "content": system}, *history, {"role": "user", "content": state["query"]}],
             ParsedIntent,
             task="intent_parsing",
             prompt=p,

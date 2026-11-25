@@ -55,6 +55,7 @@ class RunContext:
     http: httpx.AsyncClient
     prompts: PromptStore
     history: list[dict[str, str]] = field(default_factory=list)
+    summary: str | None = None   # running summary of the chat's older messages (memory layer 2)
 
     def prompt(self, name: str) -> Prompt:
         """Resolve a prompt for this user (sticky A/B experiment arm if one is running)."""

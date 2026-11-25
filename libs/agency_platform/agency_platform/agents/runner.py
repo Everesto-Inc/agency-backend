@@ -18,12 +18,13 @@ import random
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from datetime import datetime
 
 import httpx
 
 from agency_platform.agents.base import AgentEvent, RunContext, TopicAgent
 from agency_platform.agents.response_cache import CachedAnswer, ResponseCache
-from agency_platform.agents.sessions import SessionStore, turns_from_runs
+from agency_platform.agents.sessions import SessionStore, messages_to_fold, turns_from_runs
 from agency_platform.auth.deps import AuthenticatedUser
 from agency_platform.billing.usage import RateLimiter, UsageMeter
 from agency_platform.config.prompts import PromptStore
@@ -34,7 +35,7 @@ from agency_platform.errors import AppError, RateLimitedError, ServiceUnavailabl
 from agency_platform.llm.call_token import CallClaims, mint_call_token
 from agency_platform.llm.client import ModelGatewayClient
 from agency_platform.observability.metrics import AGENT_RUN_LATENCY, AGENT_RUNS, CACHE_EVENTS, QUOTA_REJECTIONS
-from agency_platform.repositories import RunRepository, RunResult
+from agency_platform.repositories import ConversationRepository, RunRepository, RunResult
 from agency_platform.security.content import clean_user_prompt
 from agency_platform.security.pii import redact
 
@@ -74,6 +75,7 @@ class TopicRunner:
         http: httpx.AsyncClient,
         cache: ResponseCache | None = None,
         heartbeat_s: float = 15.0,
+        conversations: ConversationRepository | None = None,
     ) -> None:
         self.agent = agent
         self._settings = settings
@@ -85,6 +87,8 @@ class TopicRunner:
         self._http = http
         self._cache = cache
         self._heartbeat_s = heartbeat_s
+        self._conversations = conversations   # running chat summary (memory layer 2); None = off
+        self._background: set[asyncio.Task] = set()
 
     @property
     def topic(self) -> str:
@@ -180,9 +184,13 @@ class TopicRunner:
         async def emit(ev: AgentEvent) -> None:
             await queue.put(ev)
 
+        ctx: RunContext | None = None
+        summary: str | None = None
+        summary_upto: datetime | None = None
         try:
             await self._record_start(req, fingerprint)
             history = await self._memory(req)
+            summary, summary_upto = await self._summary(req)
             cacheable = self._cache is not None and cfg.response_cache_ttl_s > 0 and not history
             cache_key = (
                 self._cache.key(self.topic, fingerprint, req.user.plan_config.max_tier, req.prompt) if cacheable else None
@@ -200,7 +208,7 @@ class TopicRunner:
             if cache_key:
                 CACHE_EVENTS.labels("response", self.topic, "miss").inc()
 
-            ctx = self._build_context(req, cfg, history)
+            ctx = self._build_context(req, cfg, history, summary)
             async with asyncio.timeout(cfg.run_timeout_s):
                 async for ev in self.agent.run(req.prompt, ctx):
                     if ev.type == "token":
@@ -247,6 +255,11 @@ class TopicRunner:
                     "request_id": req.request_id,
                 }))
                 await queue.put(_END)
+            if outcome.status == "success" and ctx is not None and self._conversations is not None:
+                # after the answer, never before it: fold older messages into the chat's summary (cheap model)
+                task = asyncio.create_task(self._update_summary(req, ctx, summary, summary_upto))
+                self._background.add(task)
+                task.add_done_callback(self._background.discard)
 
     async def _memory(self, req: RunRequest) -> list[dict[str, str]]:
         """The chat's memory: Redis (fast, 24 h); when empty, the chat's stored turns from MySQL, put back into Redis."""
@@ -264,7 +277,41 @@ class TopicRunner:
             await self._sessions.append(req.user.id, req.session_id, *history)
         return history
 
-    def _build_context(self, req: RunRequest, cfg: TopicConfig, history: list[dict[str, str]]) -> RunContext:
+    async def _summary(self, req: RunRequest) -> tuple[str | None, datetime | None]:
+        if self._conversations is None:
+            return None, None
+        try:
+            return await self._conversations.summary(req.user.id, req.session_id)
+        except Exception:
+            logger.warning("chat summary read failed", extra={"topic": self.topic}, exc_info=True)
+            return None, None
+
+    async def _update_summary(self, req: RunRequest, ctx: RunContext, previous: str | None,
+                              upto: datetime | None) -> None:
+        """Fold the older messages not yet summarized into the running summary (low tier, ≤ 300 tokens)."""
+        try:
+            fold = messages_to_fold(await self._sessions.history(req.user.id, req.session_id), upto)
+            if not fold:
+                return
+            text = await self._write_summary(ctx, previous, fold)
+            if text:
+                await self._conversations.set_summary(  # type: ignore[union-attr]
+                    req.user.id, req.session_id, text, datetime.fromisoformat(fold[-1]["at"]))
+        except Exception:
+            logger.warning("chat summary update failed", extra={"topic": self.topic}, exc_info=True)
+
+    async def _write_summary(self, ctx: RunContext, previous: str | None, fold: list[dict[str, str]]) -> str:
+        p = self._prompts.get("memory", "conversation_summary", subject=ctx.user.id)
+        lines = "\n".join(f"{m['role']} ({m.get('topic') or 'assistant'}): {m['content'][:1500]}" for m in fold)
+        result = await ctx.llm.chat(
+            [{"role": "system", "content": p.system},
+             {"role": "user", "content": f"Current summary:\n{previous or '(none yet)'}\n\nNew messages:\n{lines}"}],
+            task="summarization", prompt=p,
+        )
+        return result.content.strip()
+
+    def _build_context(self, req: RunRequest, cfg: TopicConfig, history: list[dict[str, str]],
+                       summary: str | None = None) -> RunContext:
         secret = self._settings.model_gateway_client_secret
         if secret is None:
             raise ServiceUnavailableError("MODEL_GATEWAY_CLIENT_SECRET is not configured")
@@ -288,6 +335,7 @@ class TopicRunner:
             http=self._http,
             prompts=self._prompts,
             history=history,
+            summary=summary,
         )
 
     @staticmethod

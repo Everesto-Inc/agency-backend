@@ -36,7 +36,7 @@ from agency_platform.config.settings import PlatformSettings
 from agency_platform.db import get_db
 from agency_platform.errors import AppError, NotFoundError
 from agency_platform.observability.metrics import FEEDBACK
-from agency_platform.repositories import RunRepository
+from agency_platform.repositories import ConversationRepository, RunRepository
 from agency_platform.service import openapi
 from agency_platform.service.app import ServiceSpec, create_service_app
 
@@ -171,6 +171,7 @@ def create_topic_service(
             prompts=prompt_store(),
             http=app.state.http,
             cache=ResponseCache(get_redis()),
+            conversations=ConversationRepository(get_db()),
         )
         await agent.startup(app)
 

@@ -38,6 +38,11 @@ read the last 4). **One memory per chat**, shared by every assistant — switchi
 When Redis has nothing (expired, restarted), the runner reloads the chat's last answered turns from MySQL and puts
 them back into Redis — reopening an old chat continues with context. Deleting a chat erases both.
 
+**Long chats** — the older part of a chat (beyond the last 4 messages) is kept as a short **running summary**
+(`conversations.summary`, ≤ 8 bullets): after an answer, in the background, the cheap model (task `summarization`,
+low tier) folds the older messages into it once 6 of them are not summarized yet (≈ every 3 questions). Every
+assistant gets "summary + last 4 messages + question". The prompt is `prompts/memory.yaml` (editable, versioned).
+
 ## Redis
 
 Everything in Redis expires or can be rebuilt — losing it loses no permanent data.
