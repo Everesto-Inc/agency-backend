@@ -16,8 +16,10 @@ SPECS = {"battery_kwh": 75.0, "range_km": 500.0, "max_charging_kw": 250.0, "effi
 
 
 class FakeSources:
-    def __init__(self, fail: str | None = None) -> None:
+    def __init__(self, fail: str | None = None, currency: str = "EUR") -> None:
         self.fail = fail
+        self.currency = currency
+        self.price_calls: list[tuple[str, str]] = []
 
     async def ev_specs(self, make, model, year, trim, ctx):
         if self.fail == "specs":
@@ -25,10 +27,11 @@ class FakeSources:
         return dict(SPECS)
 
     async def country_price(self, country, metric, ctx):
+        self.price_calls.append((country, metric))
         if self.fail == "price":
             raise UpstreamError("no verifiable data")
         value = 0.25 if metric.startswith("electricity") else 1.80
-        return {"value": value, "currency": "EUR", "source_url": f"https://example.com/{metric}"}
+        return {"value": value, "currency": self.currency, "source_url": f"https://example.com/{metric}"}
 
 
 @pytest.fixture(autouse=True)
@@ -44,13 +47,19 @@ def no_db(monkeypatch):
 
 def intent(mode="ev_vs_fuel"):
     return {"comparison_mode": mode, "country_code": "fr", "annual_mileage_km": 20000, "vehicle_a_make": "Tesla",
-            "vehicle_a_model": "Model 3", "vehicle_a_year": 2024, "vehicle_a_trim": "", "fuel_type": "diesel"}
+            "vehicle_a_model": "Model 3", "vehicle_a_year": 2024, "vehicle_a_year_stated": True, "vehicle_a_trim": "",
+            "fuel_type": "diesel"}
 
 
-async def run(llm, sources, query="Model 3 vs diesel in France, 20000 km"):
+class FakeFX:
+    async def convert(self, amount, from_ccy, to_ccy):
+        return round(amount * 1.17, 2) if (from_ccy, to_ccy) == ("EUR", "GBP") else None
+
+
+async def run(llm, sources, query="Model 3 vs diesel in France, 20000 km", fx=None):
     ctx = fake_context("ev_research", llm, ROOT / "prompts")
     g = graph.build_graph()
-    return await g.ainvoke({"query": query}, config={"configurable": {"ctx": ctx, "sources": sources}})
+    return await g.ainvoke({"query": query}, config={"configurable": {"ctx": ctx, "sources": sources, "fx": fx}})
 
 
 async def test_full_pipeline_grounded_and_tiered(no_db):
@@ -99,3 +108,39 @@ async def test_off_topic_rejected_early(no_db):
 def test_calc_is_exact():
     assert calc.ev_energy_cost(15000, 0.3, 140.3) == {"annual_kwh": 2104.5, "annual_energy_cost": 631.35}
     assert calc.derived_efficiency(None, 400) is None
+
+
+async def test_no_country_means_no_guessed_prices_and_a_question(no_db):
+    vague = intent("single") | {"country_code": None, "annual_mileage_km": None, "vehicle_a_year_stated": False}
+    llm = FakeLLM({"intent_parsing": vague, "synthesis": "specs + which country?"})
+    sources = FakeSources()
+    state = await run(llm, sources, query="help on Tesla Model 3?")
+    assert sources.price_calls == []                       # never a default country's prices
+    assert state["needs"] == ["country"] and state["cost_a"] is None
+    assert state["assumptions"] == ["model year 2024 (latest — year not given)", "15,000 km per year (default)"]
+    told = llm.calls[-1]["messages"][-1]["content"]
+    assert '"needs"' in told and '"country"' in told and "latest" in told   # the writer must ask + list assumptions
+
+
+async def test_stated_country_and_year_no_assumptions(no_db):
+    llm = FakeLLM({"intent_parsing": intent(), "synthesis": "ok"})
+    state = await run(llm, FakeSources())
+    assert state["assumptions"] == [] and state["needs"] == []
+
+
+async def test_foreign_car_price_converted_original_kept(no_db):
+    llm = FakeLLM({"intent_parsing": intent("single") | {"country_code": "GB"}, "synthesis": "ok"})
+    state = await run(llm, FakeSources(currency="GBP"), fx=FakeFX())
+    specs = state["specs_a"]
+    assert specs["base_price"] == 42990.0 and specs["price_currency"] == "EUR"   # as found
+    assert specs["base_price_local"]["amount"] == 50298.3 and specs["base_price_local"]["currency"] == "GBP"
+    # same currency → nothing added; no FX configured → nothing added (never a mixed total)
+    same = await run(FakeLLM({"intent_parsing": intent("single"), "synthesis": "ok"}), FakeSources(), fx=FakeFX())
+    assert "base_price_local" not in same["specs_a"]
+    none = await run(FakeLLM({"intent_parsing": intent("single") | {"country_code": "GB"}, "synthesis": "ok"}),
+                     FakeSources(currency="GBP"))
+    assert "base_price_local" not in none["specs_a"]
+
+
+def test_country_codes_are_validated():
+    assert (graph.country_of("fr"), graph.country_of(" de "), graph.country_of(None), graph.country_of("USA")) == ("FR", "DE", None, None)

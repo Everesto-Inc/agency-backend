@@ -3,6 +3,10 @@
     parse_intent (LLM, low tier) -> retrieve (crawl+verify, cached) -> calculate (pure Python)
         -> synthesize (LLM, mid tier, grounded only in state) -> log_run
 
+Never guesses what changes the answer: without a stated country there are no local prices or running
+costs (the answer asks for the country); every default it used (model year, km/year) is listed as an
+assumption; a car price found for another market is converted to the local currency, never mixed.
+
 Only two nodes touch an LLM, each through the model gateway with a *task*
 (not a model), so tiering, plan ceilings, tracking and fallback are uniform.
 Any failure routes straight to log_run so failed runs are audited too.
@@ -17,6 +21,7 @@ from pydantic import BaseModel
 
 from agency_platform.agents.base import RunContext
 from agency_platform.errors import AppError
+from agency_platform.tools.fx import RATE_SOURCE
 from ev_research import calc, repository
 from ev_research.params import params
 from ev_research.sources import FactSources
@@ -25,7 +30,7 @@ from ev_research.sources import FactSources
 class EVState(TypedDict, total=False):
     query: str
     comparison_mode: str
-    country_code: str
+    country_code: str | None
     annual_mileage_km: int
     vehicle_a: dict[str, Any]
     vehicle_b: dict[str, Any] | None
@@ -40,21 +45,30 @@ class EVState(TypedDict, total=False):
     comparison: dict[str, Any] | None
     analysis: str | None
     unavailable: list[str]
+    assumptions: list[str]
+    needs: list[str]
     error: str | None
 
 
 class ParsedIntent(BaseModel):
     comparison_mode: Literal["single", "ev_vs_ev", "ev_vs_fuel"]
-    country_code: str = "US"
+    country_code: str | None = None          # null unless the user said it (this message or the conversation)
     annual_mileage_km: int | None = None
     vehicle_a_make: str
     vehicle_a_model: str
     vehicle_a_year: int
+    vehicle_a_year_stated: bool = True
     vehicle_a_trim: str = ""
     vehicle_b_make: str | None = None
     vehicle_b_model: str | None = None
     vehicle_b_year: int | None = None
     fuel_type: Literal["petrol", "diesel"] | None = None
+
+
+def country_of(code: str | None) -> str | None:
+    """Pure: a valid ISO alpha-2 code, else None (no country is better than a wrong one)."""
+    code = (code or "").strip().upper()
+    return code if len(code) == 2 and code.isalpha() else None
 
 
 def _deps(config: RunnableConfig) -> tuple[RunContext, FactSources]:
@@ -82,12 +96,20 @@ async def parse_intent(state: EVState, config: RunnableConfig) -> dict[str, Any]
     if intent.comparison_mode == "ev_vs_ev" and intent.vehicle_b_make and intent.vehicle_b_model:
         vehicle_b = {"make": intent.vehicle_b_make, "model": intent.vehicle_b_model,
                      "year": intent.vehicle_b_year or intent.vehicle_a_year, "trim": ""}
+    assumptions: list[str] = []
     if intent.comparison_mode == "ev_vs_fuel" and intent.fuel_type is None:
         intent.fuel_type = "petrol"
+        assumptions.append("compared with a petrol car (fuel type not given)")
+    if not intent.vehicle_a_year_stated:
+        assumptions.append(f"model year {intent.vehicle_a_year} (latest — year not given)")
+    km = intent.annual_mileage_km or params().assumptions.default_annual_mileage_km
+    if not intent.annual_mileage_km:
+        assumptions.append(f"{km:,} km per year (default)")
     return {
         "comparison_mode": intent.comparison_mode,
-        "country_code": intent.country_code.upper()[:2],
-        "annual_mileage_km": intent.annual_mileage_km or params().assumptions.default_annual_mileage_km,
+        "country_code": country_of(intent.country_code),
+        "annual_mileage_km": km,
+        "assumptions": assumptions,
         "vehicle_a": {"make": intent.vehicle_a_make, "model": intent.vehicle_a_model,
                       "year": intent.vehicle_a_year, "trim": intent.vehicle_a_trim},
         "vehicle_b": vehicle_b,
@@ -98,18 +120,18 @@ async def parse_intent(state: EVState, config: RunnableConfig) -> dict[str, Any]
 async def retrieve(state: EVState, config: RunnableConfig) -> dict[str, Any]:
     """All lookups in parallel; each is cache-first."""
     ctx, sources = _deps(config)
-    country = state["country_code"]
-    jobs: dict[str, Any] = {
-        "specs_a": sources.ev_specs(**state["vehicle_a"], ctx=ctx),
-        "electricity_price": sources.country_price(country, "electricity_price_per_kwh", ctx),
-    }
+    country = state.get("country_code")
+    jobs: dict[str, Any] = {"specs_a": sources.ev_specs(**state["vehicle_a"], ctx=ctx)}
     if state.get("vehicle_b"):
         jobs["specs_b"] = sources.ev_specs(**state["vehicle_b"], ctx=ctx)
-    if state.get("comparison_mode") == "ev_vs_fuel":
-        jobs["fuel_price"] = sources.country_price(country, f"{state['fuel_type']}_price_per_liter", ctx)
+    if country:  # local prices only for a country the user gave — never a default country
+        jobs["electricity_price"] = sources.country_price(country, "electricity_price_per_kwh", ctx)
+        if state.get("comparison_mode") == "ev_vs_fuel":
+            jobs["fuel_price"] = sources.country_price(country, f"{state['fuel_type']}_price_per_liter", ctx)
 
     results = await asyncio.gather(*jobs.values(), return_exceptions=True)
-    out: dict[str, Any] = {"unavailable": []}
+    out: dict[str, Any] = {"unavailable": [], "needs": [] if country else ["country"],
+                           "electricity_price": None, "fuel_price": None}
     for key, result in zip(jobs, results, strict=True):
         if isinstance(result, BaseException):
             msg = result.message if isinstance(result, AppError) else type(result).__name__
@@ -120,7 +142,26 @@ async def retrieve(state: EVState, config: RunnableConfig) -> dict[str, Any]:
             out[key] = None
             continue
         out[key] = result
+    await _local_prices(out, config)
     return out
+
+
+async def _local_prices(out: dict[str, Any], config: RunnableConfig) -> None:
+    """A car price found in another currency → add the local amount (ECB rate); the original is always kept."""
+    fx = config["configurable"].get("fx")
+    local = (out.get("electricity_price") or out.get("fuel_price") or {}).get("currency")
+    for key in ("specs_a", "specs_b"):
+        specs = out.get(key)
+        if not (fx and local and specs and specs.get("base_price") and specs.get("price_currency")):
+            continue
+        if specs["price_currency"].upper() == local.upper():
+            continue
+        try:
+            amount = await fx.convert(float(specs["base_price"]), specs["price_currency"], local)
+        except AppError:
+            amount = None
+        if amount is not None:
+            out[key] = {**specs, "base_price_local": {"amount": amount, "currency": local.upper(), "rate_source": RATE_SOURCE}}
 
 
 def calculate(state: EVState) -> dict[str, Any]:
@@ -156,7 +197,8 @@ def calculate(state: EVState) -> dict[str, Any]:
 
 
 GROUNDED_KEYS = ("vehicle_a", "vehicle_b", "country_code", "annual_mileage_km", "specs_a", "specs_b",
-                 "electricity_price", "fuel_price", "cost_a", "cost_b", "fuel_cost", "comparison", "unavailable")
+                 "electricity_price", "fuel_price", "cost_a", "cost_b", "fuel_cost", "comparison", "unavailable",
+                 "assumptions", "needs")
 
 
 async def synthesize(state: EVState, config: RunnableConfig) -> dict[str, Any]:

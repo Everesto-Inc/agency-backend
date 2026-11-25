@@ -23,3 +23,8 @@ assumptions:
   # real figure is crawled, this is a DISCLOSED assumption (synthesize says so).
   avg_ice_fuel_consumption_l_per_100km: 7.0
   default_annual_mileage_km: 15000
+
+fx:
+  # A car price found for another market is converted to the local currency (shown next to the original).
+  url: https://api.frankfurter.app/latest   # ECB reference rates, no key
+  cache_ttl_s: 21600

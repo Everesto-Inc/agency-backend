@@ -32,11 +32,17 @@ class Assumptions(BaseModel):
     default_annual_mileage_km: int = Field(15000, gt=0)
 
 
+class FX(BaseModel):
+    url: str = "https://api.frankfurter.app/latest"   # ECB reference rates, no key
+    cache_ttl_s: int = Field(21600, ge=60)
+
+
 class EVParams(BaseModel):
     country_data: CountryData
     ev_specs: EVSpecs
     crawl: Crawl
     assumptions: Assumptions
+    fx: FX = FX()
 
 
 def settings() -> EVSettings:
