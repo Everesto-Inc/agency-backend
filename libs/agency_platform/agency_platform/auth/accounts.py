@@ -100,6 +100,21 @@ class AccountRepository:
         )
         return await self.get(uid) if matched else None
 
+    async def set_password(self, user_id: str, password: str) -> bool:
+        """New password (hashed). False = no such user. Callers revoke the user's sessions."""
+        hashed = await hash_password(password)
+        matched = await self._db.execute(
+            "UPDATE users SET hashed_password = %s WHERE id = %s", (hashed, canonical_uuid(user_id))
+        )
+        return bool(matched)
+
+    async def list_accounts(self, plan: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+        """Newest first; plan='none' = accounts waiting for activation."""
+        where, args = ("WHERE plan = %s", (plan,)) if plan else ("", ())
+        return await self._db.fetch(
+            f"SELECT {_ACCOUNT_COLS}, created_at FROM users {where} ORDER BY created_at DESC LIMIT %s", (*args, limit)
+        )
+
     async def set_role(self, user_id: str, role: str) -> None:
         await self._db.execute("UPDATE users SET role = %s WHERE id = %s", (role, canonical_uuid(user_id)))
 

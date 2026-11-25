@@ -257,6 +257,16 @@ class PlanChanged(BaseModel):
     plan_expires_at: datetime | None
 
 
+class AccountSummary(BaseModel):
+    id: str
+    email: str
+    role: str
+    plan: str = Field(description="'none' = waiting for activation by an admin")
+    plan_expires_at: datetime | None
+    is_active: bool
+    created_at: datetime
+
+
 class AdminRun(BaseModel):
     request_id: str
     user_id: str

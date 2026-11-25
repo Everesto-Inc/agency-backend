@@ -16,12 +16,13 @@ Interactive reference for every endpoint: **Backstage → APIs** (each API's *De
 | Group | Endpoints | |
 |---|---|---|
 | Auth | `POST /auth/register`, `/login`, `/refresh`, `/logout` | tokens |
-| Account | `GET /auth/me`, `GET /auth/me/export`, `DELETE /auth/me` | GDPR export + erasure |
+| Account | `GET /auth/me`, `PUT /auth/me/password`, `GET /auth/me/export`, `DELETE /auth/me` | change password (logs out everywhere), GDPR export + erasure |
 | Chat | `POST /chat` | any question, auto-routed |
 | Topics | `GET /topics` | assistants + whether my plan includes them |
 | Usage | `GET /usage/me`, `/usage/me/daily`, `/usage/me/runs` | my tokens + cost |
 | Dashboard | `GET /dashboard/months`, `GET /dashboard?month=YYYY-MM` | one call per screen |
 | Admin … | usage & billing, models & routing, topics & experiments, quality & evals, accounts & runs, dashboard | `role=admin` only |
+| Admin → accounts | `GET /admin/users?plan=none` (waiting for activation), `PUT /admin/users/{id}/plan` (activate), `PUT /admin/users/{id}/password` (reset), `POST /admin/users/{id}/disable` | new accounts get plan `none` until an admin activates them |
 
 ## Authentication
 

@@ -59,6 +59,9 @@ docker compose run --rm -it edge-gateway python -m edge_gateway.cli create-admin
 
 Activate another account (admin): **Admin → PUT /api/v1/admin/users/{user_id}/plan** with `{"plan": "free"}`, or
 `docker compose run --rm -it edge-gateway python -m edge_gateway.cli set-plan user@example.com free`.
+Accounts waiting for activation: **GET /api/v1/admin/users?plan=none**. Forgotten password: an admin sets a new one
+(**PUT /api/v1/admin/users/{user_id}/password**, or CLI `set-password <email>`); users change their own with
+**PUT /api/v1/auth/me/password**. No email is ever sent.
 
 ## 5. Useful commands
 

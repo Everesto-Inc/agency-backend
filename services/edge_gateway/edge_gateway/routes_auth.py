@@ -35,6 +35,18 @@ class Credentials(BaseModel):
         return v
 
 
+class PasswordChange(BaseModel):
+    current_password: str = Field(..., max_length=256)
+    new_password: str = Field(..., min_length=10)
+
+    @field_validator("new_password")
+    @classmethod
+    def _bcrypt_limit(cls, v: str) -> str:
+        if len(v.encode()) > MAX_PASSWORD_BYTES:
+            raise ValueError(f"password must be at most {MAX_PASSWORD_BYTES} bytes")
+        return v
+
+
 class LoginBody(BaseModel):
     email: EmailStr
     password: str = Field(..., max_length=256)
@@ -132,6 +144,16 @@ async def me(user: CurrentUser) -> Me:
         entitled_topics=plan.topics,
         max_model_tier=plan.max_tier,
     )
+
+
+@router.put("/me/password", status_code=204, tags=ACCOUNT, summary="Change my password (logs out every session)",
+            responses={**openapi.AUTHED, **openapi.errors(422, 429)})
+async def change_password(body: PasswordChange, user: CurrentUser, repo: Accounts, refresh: Refresh, rl: Limiter) -> None:
+    """Needs the current password. Every refresh token is revoked: other devices must log in again."""
+    await rl.hit(f"password:{user.id}", 5, 3600)
+    await repo.authenticate(user.email, body.current_password)  # re-auth
+    await repo.set_password(user.id, body.new_password)
+    await refresh.revoke_all(user.id)
 
 
 class EraseBody(BaseModel):

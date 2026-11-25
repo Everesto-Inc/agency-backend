@@ -7,10 +7,11 @@ from datetime import datetime
 from typing import Any, Literal
 
 from fastapi import APIRouter, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from agency_platform.auth.accounts import AccountRepository, RefreshTokenStore
 from agency_platform.auth.deps import AdminUser, get_account_directory
+from agency_platform.auth.passwords import MAX_PASSWORD_BYTES
 from agency_platform.config.registry import plans
 from agency_platform.config.settings import get_settings
 from agency_platform.db import get_db
@@ -20,6 +21,7 @@ from agency_platform.repositories.admin_metrics import Window, f, opt_f
 from agency_platform.repositories.usage import since, total
 from agency_platform.service import openapi
 from edge_gateway.schemas import (
+    AccountSummary,
     AdminRun,
     CanaryStat,
     EvalCase,
@@ -164,6 +166,36 @@ async def set_plan(user_id: uuid.UUID, body: PlanChange, _: AdminUser) -> PlanCh
         raise NotFoundError("User not found")
     await get_account_directory().invalidate(str(user_id))  # takes effect on the next request
     return PlanChanged(id=account.id, plan=account.plan, plan_expires_at=account.plan_expires_at)
+
+
+@admin_router.get("/users", tags=ACCOUNTS, summary="List accounts (plan=none: waiting for activation)")
+async def list_users(
+    _: AdminUser,
+    plan: str | None = Query(default=None, max_length=64, description="Only this plan, e.g. none"),
+    limit: int = Query(default=100, ge=1, le=500),
+) -> list[AccountSummary]:
+    """Activate an account with PUT /users/{user_id}/plan."""
+    rows = await AccountRepository(get_db()).list_accounts(plan, limit)
+    return [AccountSummary(**{**r, "is_active": bool(r["is_active"])}) for r in rows]
+
+
+class PasswordReset(BaseModel):
+    new_password: str = Field(..., min_length=10, description="Tell the user; they can change it later")
+
+    @field_validator("new_password")
+    @classmethod
+    def _bcrypt_limit(cls, v: str) -> str:
+        if len(v.encode()) > MAX_PASSWORD_BYTES:
+            raise ValueError(f"password must be at most {MAX_PASSWORD_BYTES} bytes")
+        return v
+
+
+@admin_router.put("/users/{user_id}/password", status_code=204, tags=ACCOUNTS,
+                  summary="Reset a user's password and revoke their sessions", responses=openapi.errors(404, 422))
+async def reset_password(user_id: uuid.UUID, body: PasswordReset, _: AdminUser) -> None:
+    if not await AccountRepository(get_db()).set_password(str(user_id), body.new_password):
+        raise NotFoundError("User not found")
+    await RefreshTokenStore(get_db(), get_settings().refresh_token_ttl_days).revoke_all(str(user_id))
 
 
 @admin_router.post("/users/{user_id}/disable", status_code=204, tags=ACCOUNTS,
