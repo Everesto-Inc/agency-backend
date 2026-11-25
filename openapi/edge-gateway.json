@@ -533,6 +533,18 @@
             "title": "Created At",
             "type": "string"
           },
+          "feedback_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Your rating: 1 👍, -1 👎, 0 / null none",
+            "title": "Feedback Score"
+          },
           "images": {
             "description": "Pictures the user sent with this question",
             "items": {
@@ -1172,6 +1184,38 @@
           "judged_runs"
         ],
         "title": "ExperimentArm",
+        "type": "object"
+      },
+      "FeedbackBody": {
+        "properties": {
+          "comment": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What was wrong or right (feeds the eval datasets)",
+            "title": "Comment"
+          },
+          "score": {
+            "description": "-1 bad, 0 neutral, 1 good",
+            "enum": [
+              -1,
+              0,
+              1
+            ],
+            "title": "Score",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "score"
+        ],
+        "title": "FeedbackBody",
         "type": "object"
       },
       "GuardrailDay": {
@@ -5765,6 +5809,100 @@
           }
         ],
         "summary": "Rename or pin a conversation",
+        "tags": [
+          "Conversations"
+        ]
+      }
+    },
+    "/api/v1/conversations/{conversation_id}/messages/{request_id}/feedback": {
+      "post": {
+        "description": "score 1 = 👍, -1 = 👎, 0 = take it back. A rated answer becomes an eval-case candidate (Admin → Quality),\nso bad answers turn into tests. Same as the topic's own /runs/{id}/feedback, but from the chat.",
+        "operationId": "rate_answer",
+        "parameters": [
+          {
+            "description": "The conversation (= chat session_id)",
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "description": "The conversation (= chat session_id)",
+              "pattern": "^[A-Za-z0-9\\-_]{1,64}$",
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "maxLength": 128,
+              "title": "Request Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or daily quota reached (codes RATE_LIMITED / QUOTA_EXCEEDED); see the Retry-After header"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Rate an answer 👍 / 👎",
         "tags": [
           "Conversations"
         ]

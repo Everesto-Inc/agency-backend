@@ -465,6 +465,7 @@ class ConversationMessage(BaseModel):
     cost_usd: float
     models: list[str] = Field(default_factory=list, description="Models that answered (from the LLM call ledger)")
     images: list[SentPicture] = Field(default_factory=list, description="Pictures the user sent with this question")
+    feedback_score: int | None = Field(None, description="Your rating: 1 👍, -1 👎, 0 / null none")
 
 
 

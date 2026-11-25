@@ -67,6 +67,13 @@ class RunRepository:
         )
         return matched > 0
 
+    async def topic_in_session(self, *, request_id: str, user_id: str, session_id: str) -> str | None:
+        """The run's topic if it is this user's, in this conversation (chat 👍/👎)."""
+        return await self._db.fetchval(
+            "SELECT topic FROM agent_runs WHERE request_id = %s AND user_id = %s AND session_id = %s",
+            (request_id, user_id, session_id),
+        )
+
     async def propose_eval_case(self, *, request_id: str, label: str, comment: str | None) -> None:
         """Feedback -> dataset: a rated run becomes an eval-case candidate for an admin to
         curate. Re-rating updates the candidate, but never a case already curated."""

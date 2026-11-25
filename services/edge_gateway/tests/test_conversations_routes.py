@@ -161,3 +161,32 @@ async def test_chat_with_pictures_describes_them_for_the_assistants(monkeypatch)
 def test_hard_ceiling_of_pictures_per_message():   # the working limit (4) is config, checked in attach()
     with pytest.raises(ValueError):
         routes_chat.ChatBody(prompt="x", image_ids=["a" * 64] * 11)
+
+
+
+async def test_rate_an_answer_from_the_chat(monkeypatch):
+    calls = []
+
+    class Runs:
+        def __init__(self, _db):
+            pass
+
+        async def topic_in_session(self, *, request_id, user_id, session_id):
+            return "ev_research" if (request_id, user_id, session_id) == ("r1", "u1", "abc") else None
+
+        async def set_feedback(self, **kw):
+            calls.append(("set", kw["score"], kw["topic"]))
+            return True
+
+        async def propose_eval_case(self, **kw):
+            calls.append(("case", kw["label"]))
+
+    from agency_platform.agents.schemas import FeedbackBody
+    monkeypatch.setattr(rc, "RunRepository", Runs)
+    monkeypatch.setattr(rc, "get_db", lambda: None)
+    await rc.rate_answer("abc", "r1", FeedbackBody(score=-1, comment="wrong range"), USER)
+    assert calls == [("set", -1, "ev_research"), ("case", "negative")]
+    await rc.rate_answer("abc", "r1", FeedbackBody(score=0), USER)          # taken back: no eval case
+    assert calls[-1] == ("set", 0, "ev_research")
+    with pytest.raises(NotFoundError):                                     # other chat / other user
+        await rc.rate_answer("other", "r1", FeedbackBody(score=1), USER)

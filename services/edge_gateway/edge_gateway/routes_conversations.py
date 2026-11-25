@@ -3,13 +3,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, Query, Request
 
-from agency_platform.agents.schemas import SESSION_ID_PATTERN
+from agency_platform.agents.schemas import SESSION_ID_PATTERN, FeedbackBody
 from agency_platform.agents.sessions import SessionStore
 from agency_platform.auth.deps import CurrentUser
 from agency_platform.cache import get_redis
 from agency_platform.db import get_db
 from agency_platform.errors import NotFoundError
-from agency_platform.repositories import ConversationRepository
+from agency_platform.observability.metrics import FEEDBACK
+from agency_platform.repositories import ConversationRepository, RunRepository
 from agency_platform.service import openapi
 from agency_platform.tools.vision import question_only
 from edge_gateway.routes_images import image_store
@@ -71,3 +72,20 @@ async def delete_conversation(conversation_id: ConversationId, user: CurrentUser
         raise NotFoundError("Conversation not found")
     await SessionStore(get_redis()).forget_session(user.id, conversation_id)
     await image_store(request).delete_session(user.id, conversation_id)
+
+
+@conversations_router.post("/{conversation_id}/messages/{request_id}/feedback", status_code=204,
+                           summary="Rate an answer 👍 / 👎", responses=openapi.errors(404, 422))
+async def rate_answer(conversation_id: ConversationId, request_id: Annotated[str, Path(max_length=128)],
+                      body: FeedbackBody, user: CurrentUser) -> None:
+    """score 1 = 👍, -1 = 👎, 0 = take it back. A rated answer becomes an eval-case candidate (Admin → Quality),
+    so bad answers turn into tests. Same as the topic's own /runs/{id}/feedback, but from the chat."""
+    runs = RunRepository(get_db())
+    topic = await runs.topic_in_session(request_id=request_id, user_id=user.id, session_id=conversation_id)
+    if topic is None:
+        raise NotFoundError("Answer not found")
+    await runs.set_feedback(request_id=request_id, user_id=user.id, topic=topic, score=body.score, comment=body.comment)
+    FEEDBACK.labels(topic, str(body.score)).inc()
+    if body.score != 0:
+        await runs.propose_eval_case(request_id=request_id, label="negative" if body.score < 0 else "positive",
+                                     comment=body.comment)
