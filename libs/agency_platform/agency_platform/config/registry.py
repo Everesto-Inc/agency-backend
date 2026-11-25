@@ -20,7 +20,7 @@ def plans_file() -> ParamFile[PlansFile]:
 
 @lru_cache
 def topics_file() -> ParamFile[TopicsFile]:
-    return ParamFile(get_settings().config_dir / "topics.yaml", TopicsFile)
+    return _named(ParamFile(get_settings().config_dir / "topics.yaml", TopicsFile), "topics")
 
 
 @lru_cache

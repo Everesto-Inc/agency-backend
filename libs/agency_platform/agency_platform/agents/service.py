@@ -72,7 +72,8 @@ def build_topic_router(get_runner, tag: str) -> APIRouter:
         token/cost quota first; tokens and cost of every LLM call are recorded per topic."""
         runner: TopicRunner = get_runner()
         prompt = await runner.preflight(user, body.prompt)
-        req = RunRequest(user=user, prompt=prompt, session_id=body.session_id, request_id=request.state.request_id)
+        req = RunRequest(user=user, prompt=prompt, session_id=body.session_id, request_id=request.state.request_id,
+                         smalltalk=body.smalltalk)
         if body.stream:
             return StreamingResponse(
                 _sse_stream(runner.stream(req)),

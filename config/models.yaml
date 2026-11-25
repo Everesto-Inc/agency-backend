@@ -67,6 +67,7 @@ routing:
     intent_parsing: low
     extraction: low
     summarization: low
+    smalltalk: low                # greetings, "who are you" — one short answer (prompts/edge.yaml)
     vision: low                   # one-line description of a picture the user sent (prompts/vision.yaml)
     query_planning: low
     compliance_review: low
@@ -78,6 +79,22 @@ routing:
     planning: high
     investment_analysis: high
     eval_judge: high              # LLM-as-judge for offline + online evals
+
+  # Thinking (Gemini thinks before answering — better on hard questions, seconds slower per call).
+  # minimal = as little as the model allows · low · medium · high · default = the model's own (a lot).
+  # Small, structured calls don't need it; per task wins over per tier. Admin → Settings → Models & routing.
+  thinking:
+    tiers: {low: minimal, mid: low, high: medium}
+    tasks:
+      topic_classification: minimal
+      smalltalk: minimal
+      intent_parsing: minimal
+      extraction: minimal
+      query_planning: minimal
+      summarization: minimal
+      compliance_review: minimal
+      vision: minimal
+      synthesis: low
 
   # "auto": score the request; clear cases decided by heuristics (free), the
   # ambiguous middle band by a low-tier LLM judge (cached).

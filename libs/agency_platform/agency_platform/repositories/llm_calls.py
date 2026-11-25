@@ -6,7 +6,7 @@ from agency_platform.db import Database
 CALL_COLUMNS = (
     "request_id", "user_id", "client_id", "task", "prompt_ref", "requested_model", "route_source",
     "route_reason", "tier", "model", "attempt", "status", "error_type", "prompt_tokens", "completion_tokens",
-    "cost_usd", "latency_ms", "streamed", "cached", "canary", "pii_redactions",
+    "cost_usd", "latency_ms", "streamed", "cached", "canary", "pii_redactions", "started_at",
 )
 
 _INSERT_CALLS = (

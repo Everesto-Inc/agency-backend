@@ -10,6 +10,21 @@ routing:
   keyword_min_hits: 1     # keyword score needed to route without the LLM
   llm_fallback: true      # ambiguous prompts -> low-tier LLM classifier
   default_topic: null     # null = ask the user to pick when nothing matches
+  # Follow-ups ("and in winter?") stay with the chat's assistant unless keywords clearly say otherwise —
+  # no routing call. A first question without keywords still asks the routing model.
+  sticky_follow_ups: true
+  # Obvious small talk → one short answer from the cheap model, no assistant workflow. Only a shortcut: other
+  # wording takes the normal path, where the routing model can also answer "smalltalk".
+  smalltalk:
+    enabled: true
+    max_words: 8
+    phrases: [
+      hi, hello, hey, hiya, yo, good morning, good evening, hallo, guten tag, servus, moin, bonjour, salut, hola, ciao,
+      thanks, thank you, thx, cheers, danke, merci, gracias, grazie,
+      who are you, what are you, are you a bot, are you human, your name, wer bist du, qui es-tu, quién eres,
+      what can you do, how can you help, how does this work, help, was kannst du, que peux-tu faire,
+      bye, goodbye, see you, tschüss, ciao ciao, au revoir, adiós, how are you, wie geht's, ça va,
+    ]
 
 topics:
   ev_research:
@@ -49,7 +64,7 @@ topics:
     description: >-
       Market data analysis: quotes, fundamentals, historical risk/return and
       portfolio metrics, reviewed by a compliance agent. Educational, not advice.
-    keywords: [stock, stocks, share, ticker, etf, portfolio, dividend, "p/e", "pe ratio",
+    keywords: [stock, stocks, share, ticker, etf, portfolio, dividend, "p/e", "pe ratio", overvalued, undervalued, valuation,
                invest, investing, volatility, "market cap", nasdaq, "s&p", bond]
     run_timeout_s: 180
     max_prompt_chars: 2000

@@ -11,8 +11,8 @@ import contextlib
 import logging
 import uuid
 from collections import defaultdict
-from dataclasses import dataclass
-from datetime import UTC, datetime
+from dataclasses import dataclass, replace
+from datetime import UTC, datetime, timedelta
 
 from agency_platform.billing.usage import UsageMeter
 from agency_platform.observability.metrics import CANARY_CALLS, LLM_CALLS, LLM_COST, LLM_LATENCY, LLM_TOKENS
@@ -52,6 +52,7 @@ class CallRecord:
     cached: bool = False
     canary: bool = False
     pii_redactions: int = 0
+    started_at: datetime | None = None   # set in record(): now − latency (Admin → Runs timeline)
 
 
 def _uuid_or_none(value: str | None) -> str | None:
@@ -98,6 +99,8 @@ class CallRecorder:
             await self._flush(self._drain())
 
     async def record(self, rec: CallRecord) -> None:
+        if rec.started_at is None:
+            rec = replace(rec, started_at=datetime.now(UTC) - timedelta(milliseconds=rec.latency_ms))
         LLM_CALLS.labels(rec.client_id, rec.tier, rec.model, "cached" if rec.cached else rec.status).inc()
         if not rec.cached:
             LLM_LATENCY.labels(rec.tier, rec.model).observe(rec.latency_ms / 1000)
@@ -142,7 +145,7 @@ class CallRecorder:
                 r.request_id, _uuid_or_none(r.user_id), r.client_id, r.task, r.prompt_ref, r.requested_model,
                 r.route_source, r.route_reason, r.tier, r.model, r.attempt, r.status, r.error_type,
                 r.prompt_tokens, r.completion_tokens, r.cost_usd, r.latency_ms, r.streamed, r.cached, r.canary,
-                r.pii_redactions,
+                r.pii_redactions, r.started_at.replace(tzinfo=None) if r.started_at else None,
             )
             for r in batch
         ]

@@ -113,6 +113,12 @@
             "title": "Session Id",
             "type": "string"
           },
+          "smalltalk": {
+            "default": false,
+            "description": "Greeting / 'who are you': one short answer, no agent workflow (set by the edge's router)",
+            "title": "Smalltalk",
+            "type": "boolean"
+          },
           "stream": {
             "default": true,
             "description": "true: Server-Sent Events stream; false: one JSON document (RunResponse)",

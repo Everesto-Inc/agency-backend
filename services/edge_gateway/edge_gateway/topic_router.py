@@ -18,8 +18,25 @@ from agency_platform.llm.client import ModelGatewayClient
 class TopicChoice:
     topic: str | None
     confidence: float
-    method: str  # keywords|llm|default|none
+    method: str  # keywords|smalltalk|follow-up|llm|llm-smalltalk|default|none
     scores: dict[str, int]
+    smalltalk: bool = False   # answer briefly, no assistant workflow (topic may be None → caller picks one)
+
+
+SMALLTALK = "smalltalk"   # the routing model's answer for greetings / "who are you" / thanks
+
+
+def is_smalltalk(prompt: str) -> bool:
+    """Pure (given the config): short, matches a small-talk phrase, and has no assistant keyword."""
+    cfg = topics().routing.smalltalk
+    if not cfg.enabled:
+        return False
+    text = re.sub(r"[^\w\s'-]", " ", prompt.lower())
+    words = text.split()
+    if not words or len(words) > cfg.max_words or any(keyword_scores(prompt).values()):
+        return False
+    padded = f" {' '.join(words)} "
+    return any(f" {p.lower()} " in padded for p in cfg.phrases)
 
 
 class _LLMVerdict(BaseModel):
@@ -39,7 +56,9 @@ def keyword_scores(prompt: str) -> dict[str, int]:
     return scores
 
 
-async def choose_topic(prompt: str, llm: ModelGatewayClient | None) -> TopicChoice:
+async def choose_topic(prompt: str, llm: ModelGatewayClient | None, last_topic: str | None = None) -> TopicChoice:
+    """keywords (clear winner) → small-talk shortcut → follow-up stays with the chat's assistant → routing model
+    (which may also say "smalltalk") → default. Only the routing model costs a call."""
     cfg = topics()
     scores = keyword_scores(prompt)
     ranked = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
@@ -49,6 +68,13 @@ async def choose_topic(prompt: str, llm: ModelGatewayClient | None) -> TopicChoi
         if best_hits > runner_up:  # clear winner
             confidence = round(min(0.5 + 0.15 * (best_hits - runner_up), 0.95), 2)
             return TopicChoice(best, confidence, "keywords", scores)
+
+    enabled_now = cfg.enabled()
+    follow = last_topic if last_topic in enabled_now else None
+    if is_smalltalk(prompt):
+        return TopicChoice(follow, 0.9, "smalltalk", scores, smalltalk=True)
+    if follow and cfg.routing.sticky_follow_ups:
+        return TopicChoice(follow, 0.6, "follow-up", scores)
 
     if cfg.routing.llm_fallback and llm is not None:
         enabled = cfg.enabled()
@@ -67,6 +93,8 @@ async def choose_topic(prompt: str, llm: ModelGatewayClient | None) -> TopicChoi
             )
             if verdict.topic in enabled:
                 return TopicChoice(verdict.topic, round(verdict.confidence, 2), "llm", scores)
+            if verdict.topic == SMALLTALK:
+                return TopicChoice(follow, round(verdict.confidence, 2), "llm-smalltalk", scores, smalltalk=True)
         except AppError:
             pass  # fall through to default
 

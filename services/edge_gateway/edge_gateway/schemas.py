@@ -270,6 +270,8 @@ class AccountSummary(BaseModel):
 class AdminRun(BaseModel):
     request_id: str
     user_id: str
+    user_email: str | None = None
+    prompt: str | None = Field(None, description="First 160 characters (PII-masked; null after retention)")
     topic: str
     status: str
     error_code: str | None
@@ -283,6 +285,8 @@ class AdminRun(BaseModel):
 
 
 class LlmCall(BaseModel):
+    client_id: str = Field("", description="Which service called: edge (routing), a topic, quality (judge)")
+    started_at: datetime | None = Field(None, description="When the call started (timeline)")
     task: str | None
     prompt_ref: str | None
     requested_model: str

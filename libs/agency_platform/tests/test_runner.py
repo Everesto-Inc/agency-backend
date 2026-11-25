@@ -1,6 +1,7 @@
 import asyncio
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import fakeredis.aioredis
 import httpx
@@ -297,3 +298,22 @@ async def test_no_summary_without_conversations_or_on_failure(redis, monkeypatch
         events = await collect(broken, RunRequest(user(), f"q{i}", "chat-u", f"req-sum-0010{i}"))
         await asyncio.gather(*broken._background)
     assert events[-1].data["status"] == "success" and convs.saved == []
+
+
+async def test_smalltalk_is_one_short_call_without_the_agent(monkeypatch):
+    """Edge said small talk: no agent workflow, one 'smalltalk' call, still remembered like any answer."""
+    from agency_platform.agents import runner as runner_mod
+    calls = []
+
+    class LLM:
+        async def chat(self, messages, **kw):
+            calls.append(kw["task"])
+            assert "EV Helper" in messages[0]["content"]            # tells what the team can do
+            return SimpleNamespace(content="Hi! I'm the agency team.")
+
+    r = runner_mod.TopicRunner.__new__(runner_mod.TopicRunner)
+    r._prompts = SimpleNamespace(get=lambda *a, **k: SimpleNamespace(system="desk {assistants}", ref="edge/smalltalk@1.1"))
+    user = SimpleNamespace(id="u1", plan_config=SimpleNamespace(allows_topic=lambda t: True))
+    ctx = SimpleNamespace(user=user, llm=LLM(), history=[{"role": "user", "content": "earlier"}])
+    req = SimpleNamespace(prompt="who are you?", user=user)
+    assert await r._smalltalk(ctx, req) == "Hi! I'm the agency team." and calls == ["smalltalk"]

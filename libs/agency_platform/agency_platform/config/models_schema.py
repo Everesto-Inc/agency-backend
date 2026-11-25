@@ -1,4 +1,6 @@
 """Schema for config/models.yaml: model catalog, tier candidates, routing policy."""
+from typing import Literal
+
 from pydantic import BaseModel, Field, model_validator
 
 from agency_platform.llm.tiers import Tier
@@ -44,12 +46,32 @@ class ClassifierConfig(BaseModel):
         return self
 
 
+Effort = Literal["default", "minimal", "low", "medium", "high"]
+
+
+class ThinkingConfig(BaseModel):
+    """How long the model may "think" before answering (Gemini: thinking level / budget).
+
+    Thinking makes answers better on hard questions and is slow (seconds per call). Small calls — picking the
+    assistant, reading a question into JSON, summaries — don't need it. "minimal" = as little as the model
+    allows; "default" = don't tell the model (its own default, usually a lot). A caller's own
+    reasoning_effort always wins."""
+    tiers: dict[Tier, Effort] = Field(default_factory=lambda: {Tier.LOW: "minimal", Tier.MID: "low", Tier.HIGH: "medium"})
+    tasks: dict[str, Effort] = Field(default_factory=dict, description="per task, wins over the tier")
+
+    def effort(self, task: str | None, tier: Tier) -> str | None:
+        """Pure: what to send for a call (None = send nothing)."""
+        value = self.tasks.get(task or "") or self.tiers.get(tier) or "default"
+        return None if value == "default" else value
+
+
 class RoutingConfig(BaseModel):
     default_tier: Tier = Tier.MID
     escalate_on_error: bool = True
     max_escalations: int = Field(1, ge=0, le=2)
     tasks: dict[str, Tier] = Field(default_factory=dict)
     classifier: ClassifierConfig
+    thinking: ThinkingConfig = ThinkingConfig()
 
 
 class Canary(BaseModel):

@@ -130,20 +130,21 @@ class RunRepository:
 
     async def recent(self, *, topic: str | None, status: str | None, limit: int) -> list[dict[str, Any]]:
         return await self._db.fetch(
-            """SELECT request_id, user_id, topic, status, error_code, cache_hit, latency_ms, cost_usd, llm_calls,
-                      feedback_score, prompt_fingerprint, created_at
-               FROM agent_runs
-               WHERE (%(topic)s IS NULL OR topic = %(topic)s) AND (%(status)s IS NULL OR status = %(status)s)
-               ORDER BY created_at DESC LIMIT %(limit)s""",
+            """SELECT r.request_id, r.user_id, u.email AS user_email, r.topic, r.status, r.error_code, r.cache_hit,
+                      r.latency_ms, r.cost_usd, r.llm_calls, r.feedback_score, r.prompt_fingerprint, r.created_at,
+                      LEFT(r.prompt, 160) AS prompt
+               FROM agent_runs r LEFT JOIN users u ON u.id = r.user_id
+               WHERE (%(topic)s IS NULL OR r.topic = %(topic)s) AND (%(status)s IS NULL OR r.status = %(status)s)
+               ORDER BY r.created_at DESC LIMIT %(limit)s""",
             {"topic": topic, "status": status, "limit": limit},
         )
 
     async def llm_calls(self, request_id: str) -> list[dict[str, Any]]:
         """Every LLM attempt in one run: which tier/model, why, cost, latency, cache/canary."""
         return await self._db.fetch(
-            """SELECT task, prompt_ref, requested_model, route_source, route_reason, tier, model, attempt,
+            """SELECT client_id, task, prompt_ref, requested_model, route_source, route_reason, tier, model, attempt,
                       status, error_type, cached, canary, pii_redactions, prompt_tokens, completion_tokens,
-                      cost_usd, latency_ms, created_at
-               FROM llm_calls WHERE request_id = %s ORDER BY id""",
+                      cost_usd, latency_ms, created_at, started_at
+               FROM llm_calls WHERE request_id = %s ORDER BY COALESCE(started_at, created_at), id""",
             (request_id,),
         )

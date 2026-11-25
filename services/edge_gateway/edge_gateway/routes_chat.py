@@ -5,6 +5,7 @@ Topic services are also reachable directly (each has its own API under
 """
 import json
 from collections.abc import AsyncIterator
+from dataclasses import replace
 
 import httpx
 from fastapi import APIRouter, Request
@@ -123,7 +124,10 @@ async def chat(body: ChatBody, request: Request, user: CurrentUser):
     else:
         # Only spend an LLM classification call if the user can run *something*.
         llm = _gateway_client(user, request) if user.plan_config.topics else None
-        choice = await choose_topic(prompt, llm)
+        conv = await ConversationRepository(get_db()).get(user.id, body.session_id)
+        choice = await choose_topic(prompt, llm, last_topic=(conv or {}).get("last_topic"))
+        if choice.smalltalk and choice.topic is None:   # small talk in a new chat: any assistant the plan has
+            choice = replace(choice, topic=next((t for t in enabled if user.plan_config.allows_topic(t)), None))
         if choice.topic is None:
             raise BadRequestError(
                 "Couldn't tell which assistant fits this request. Pick one explicitly via 'topic'.",
@@ -142,7 +146,7 @@ async def chat(body: ChatBody, request: Request, user: CurrentUser):
         "Content-Type": "application/json",
         **({DRAFT_HEADER: str(d.id)} if (d := current_draft()) else {}),   # testing a config draft
     }
-    payload = {"prompt": prompt, "session_id": body.session_id, "stream": body.stream}
+    payload = {"prompt": prompt, "session_id": body.session_id, "stream": body.stream, "smalltalk": choice.smalltalk}
     routed = {"topic": choice.topic, "confidence": choice.confidence, "method": choice.method}
     http: httpx.AsyncClient = request.app.state.http
     timeout = httpx.Timeout(enabled[choice.topic].run_timeout_s + 30, connect=5)

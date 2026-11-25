@@ -92,3 +92,31 @@ async def test_auto_ambiguous_uses_judge_and_caches(policy, models):
     assert first.tier == second.tier == Tier.MID
     assert first.source == second.source == "judge"
     assert len(calls) == 1  # second verdict served from cache
+
+
+# ---- thinking per task / tier (A) ----------------------------------------------------------------------
+def test_thinking_effort_per_task_then_tier():
+    from agency_platform.config.models_schema import ThinkingConfig
+    from agency_platform.llm.tiers import Tier
+    t = ThinkingConfig(tasks={"topic_classification": "minimal", "synthesis": "low", "reasoning": "default"})
+    assert t.effort("topic_classification", Tier.MID) == "minimal"     # task wins over tier
+    assert t.effort("synthesis", Tier.HIGH) == "low"
+    assert t.effort(None, Tier.HIGH) == "medium" and t.effort("other", Tier.LOW) == "minimal"
+    assert t.effort("reasoning", Tier.HIGH) is None                     # default = send nothing
+
+
+def test_executor_sends_reasoning_effort_unless_the_caller_did():
+    from types import SimpleNamespace
+
+    from agency_platform.config.models_schema import ThinkingConfig
+    from agency_platform.llm.tiers import Tier
+    from model_gateway.executor import Executor
+    ex = Executor.__new__(Executor)
+    ex._settings = SimpleNamespace(provider_key=lambda p: "k")
+    spec = SimpleNamespace(litellm_model="gemini/x", provider="gemini", timeout_s=10, tier=Tier.MID)
+    meta = SimpleNamespace(client_id="edge", request_id="r", prompt_ref=None)
+    d = SimpleNamespace(task="topic_classification", source="task", tier=Tier.MID, reason="")
+    models = SimpleNamespace(routing=SimpleNamespace(thinking=ThinkingConfig(tasks={"topic_classification": "minimal"})))
+    assert ex._kwargs(spec, [], {}, meta, d, models)["reasoning_effort"] == "minimal"
+    assert ex._kwargs(spec, [], {"reasoning_effort": "high"}, meta, d, models)["reasoning_effort"] == "high"
+    assert "reasoning_effort" not in ex._kwargs(spec, [], {}, meta, d, None)

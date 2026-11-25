@@ -240,6 +240,18 @@
             "title": "Llm Calls",
             "type": "integer"
           },
+          "prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "First 160 characters (PII-masked; null after retention)",
+            "title": "Prompt"
+          },
           "prompt_fingerprint": {
             "anyOf": [
               {
@@ -263,6 +275,17 @@
           "topic": {
             "title": "Topic",
             "type": "string"
+          },
+          "user_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Email"
           },
           "user_id": {
             "title": "User Id",
@@ -1927,6 +1950,12 @@
             "title": "Canary",
             "type": "boolean"
           },
+          "client_id": {
+            "default": "",
+            "description": "Which service called: edge (routing), a topic, quality (judge)",
+            "title": "Client Id",
+            "type": "string"
+          },
           "completion_tokens": {
             "title": "Completion Tokens",
             "type": "integer"
@@ -1996,6 +2025,19 @@
           "route_source": {
             "title": "Route Source",
             "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the call started (timeline)",
+            "title": "Started At"
           },
           "status": {
             "title": "Status",

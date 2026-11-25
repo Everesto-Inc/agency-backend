@@ -42,7 +42,7 @@ _RETRYABLE_BAD_REQUEST = (
 
 PASSTHROUGH_PARAMS = {
     "temperature", "top_p", "max_tokens", "max_completion_tokens", "stop", "tools", "tool_choice",
-    "response_format", "seed", "presence_penalty", "frequency_penalty", "parallel_tool_calls",
+    "response_format", "seed", "presence_penalty", "frequency_penalty", "parallel_tool_calls", "reasoning_effort",
 }
 
 
@@ -132,8 +132,13 @@ class Executor:
             canary=canary, cached=cached, pii_redactions=meta.pii_redactions,
         )
 
-    def _kwargs(self, spec: ModelSpec, messages: list[dict], params: dict[str, Any], meta: CallMeta, d: RouteDecision) -> dict:
+    def _kwargs(self, spec: ModelSpec, messages: list[dict], params: dict[str, Any], meta: CallMeta, d: RouteDecision,
+                models: ModelsFile | None = None) -> dict:
+        # thinking: models.yaml routing.thinking (per task, else per the model's tier) unless the caller set it
+        effort = None if "reasoning_effort" in params or models is None else \
+            models.routing.thinking.effort(d.task, spec.tier)
         return {
+            **({"reasoning_effort": effort} if effort else {}),
             "model": spec.litellm_model,
             "messages": messages,
             "api_key": self._settings.provider_key(spec.provider),
@@ -177,7 +182,7 @@ class Executor:
         for attempt, (tier, model_id, spec, is_canary) in enumerate(candidates, start=1):
             started = time.perf_counter()
             try:
-                resp = await litellm.acompletion(**self._kwargs(spec, messages, params, meta, decision))
+                resp = await litellm.acompletion(**self._kwargs(spec, messages, params, meta, decision, models))
             except Exception as exc:
                 await self._recorder.record(
                     self._record(meta, decision, tier, model_id, attempt, "error", type(exc).__name__, 0, 0, 0.0,
@@ -210,7 +215,7 @@ class Executor:
         for attempt, (tier, model_id, spec, is_canary) in enumerate(self.plan(decision, models, needs, meta.request_id), start=1):
             started = time.perf_counter()
             try:
-                kwargs = self._kwargs(spec, messages, params, meta, decision)
+                kwargs = self._kwargs(spec, messages, params, meta, decision, models)
                 stream = await litellm.acompletion(**kwargs, stream=True, stream_options={"include_usage": True})
                 iterator = stream.__aiter__()
                 first = await iterator.__anext__()

@@ -57,6 +57,7 @@ class RunRequest:
     prompt: str
     session_id: str
     request_id: str
+    smalltalk: bool = False    # one short answer, no agent workflow (edge router: greetings, "who are you")
 
 
 class _InjectionVerdict(BaseModel):
@@ -158,6 +159,19 @@ class TopicRunner:
                     line = line.split(":", 1)[0] + ": (the text in this picture was withheld: it looked like instructions)"
             lines.append(line)
         return question + marker + "\n".join(lines)
+
+    async def _smalltalk(self, ctx: RunContext, req: RunRequest) -> str:
+        p = self._prompts.get("edge", "smalltalk", subject=ctx.user.id)
+        allowed = [t for name, t in topics().enabled().items() if req.user.plan_config.allows_topic(name)]
+        assistants = "\n".join(f"- {t.display_name}: {t.description}" for t in allowed) or "- (none in this plan yet)"
+        recent = [{"role": m["role"], "content": m["content"][:500]} for m in ctx.history[-4:]
+                  if m.get("role") in ("user", "assistant")]
+        result = await ctx.llm.chat(
+            [{"role": "system", "content": p.system.format(assistants=assistants)}, *recent,
+             {"role": "user", "content": req.prompt[:1000]}],
+            task="smalltalk", prompt=p,
+        )
+        return result.content.strip() or "Hi! Ask me about electric cars, products and prices, or stocks."
 
     async def _model_flags_injection(self, ctx: RunContext, question: str) -> bool:
         """Second opinion from a cheap model for borderline questions (guardrails.yaml injection.llm_check)."""
@@ -265,6 +279,11 @@ class TopicRunner:
                 CACHE_EVENTS.labels("response", self.topic, "miss").inc()
 
             ctx = self._build_context(req, cfg, history, summary)
+            if req.smalltalk:                    # fast path: one cheap call, still remembered like any answer
+                text = await self._smalltalk(ctx, req)
+                answer_parts.append(text)
+                await emit(AgentEvent.answer(text))
+                return
             inj = guardrails().injection
             if inj.llm_check and inj.mode != "off":
                 question = req.prompt.partition(MARKER)[0]
