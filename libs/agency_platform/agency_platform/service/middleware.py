@@ -90,16 +90,21 @@ class SecurityHeadersMiddleware:
 class BodySizeLimitMiddleware:
     """Reject oversized bodies (declared or streamed) before handlers buffer them."""
 
-    def __init__(self, app: ASGIApp, max_bytes: int) -> None:
+    def __init__(self, app: ASGIApp, max_bytes: int, overrides: dict[str, int] | None = None) -> None:
         self.app = app
         self.max_bytes = max_bytes
+        self.overrides = dict(overrides or {})   # path prefix → bytes (e.g. picture uploads)
+
+    def limit_for(self, path: str) -> int:
+        return next((n for prefix, n in self.overrides.items() if path.startswith(prefix)), self.max_bytes)
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
+        max_bytes = self.limit_for(scope.get("path", ""))
         declared = dict(scope.get("headers") or []).get(b"content-length")
-        if declared is not None and declared.isdigit() and int(declared) > self.max_bytes:
+        if declared is not None and declared.isdigit() and int(declared) > max_bytes:
             await _send_413(send)
             return
         received = 0
@@ -109,7 +114,7 @@ class BodySizeLimitMiddleware:
             message = await receive()
             if message["type"] == "http.request":
                 received += len(message.get("body", b""))
-                if received > self.max_bytes:
+                if received > max_bytes:
                     raise _BodyTooLarge
             return message
 

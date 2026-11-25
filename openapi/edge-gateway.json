@@ -394,6 +394,15 @@
       },
       "ChatBody": {
         "properties": {
+          "image_ids": {
+            "description": "Pictures sent with this question (ids from POST /uploads, same chat)",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 4,
+            "title": "Image Ids",
+            "type": "array"
+          },
           "prompt": {
             "description": "Any question; the right assistant is picked",
             "examples": [
@@ -523,6 +532,14 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "images": {
+            "description": "Pictures the user sent with this question",
+            "items": {
+              "$ref": "#/components/schemas/SentPicture"
+            },
+            "title": "Images",
+            "type": "array"
           },
           "models": {
             "description": "Models that answered (from the LLM call ledger)",
@@ -2188,6 +2205,37 @@
         "title": "RunUsage",
         "type": "object"
       },
+      "SentPicture": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the vision model saw — what the assistants got",
+            "title": "Description"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "path": {
+            "description": "GET it with your Bearer token (only you can load it)",
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "path"
+        ],
+        "title": "SentPicture",
+        "type": "object"
+      },
       "Today": {
         "properties": {
           "by_topic": {
@@ -2572,6 +2620,34 @@
           "by_topic"
         ],
         "title": "TopicUsageReport",
+        "type": "object"
+      },
+      "Uploaded": {
+        "properties": {
+          "content_type": {
+            "title": "Content Type",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "size_bytes": {
+            "title": "Size Bytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "content_type",
+          "size_bytes"
+        ],
+        "title": "Uploaded",
         "type": "object"
       },
       "UsagePeriod": {
@@ -5154,7 +5230,7 @@
     },
     "/api/v1/conversations/{conversation_id}": {
       "delete": {
-        "description": "Gone from the history, questions/answers erased, assistant memory forgotten. Usage (tokens, cost) is kept.",
+        "description": "Gone from the history, questions/answers erased, assistant memory forgotten, pictures you sent deleted\nfrom storage. Usage (tokens, cost) is kept.",
         "operationId": "delete_conversation",
         "parameters": [
           {
@@ -5577,6 +5653,115 @@
         "summary": "Available assistants and whether my plan includes them",
         "tags": [
           "Topics"
+        ]
+      }
+    },
+    "/api/v1/uploads": {
+      "post": {
+        "description": "Body = the picture itself (JPEG, PNG or WebP, ≤ 2 MB). Returns an id to pass in `image_ids` of POST /chat.\nThe type is checked from the file's bytes. Private: only you can load it; deleted with the chat.",
+        "operationId": "upload",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9\\-_]{1,64}$",
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Uploaded"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad request (e.g. unknown topic, malformed input)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request body too large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limit or daily quota reached (codes RATE_LIMITED / QUOTA_EXCEEDED); see the Retry-After header"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Temporarily unavailable (topic disabled, model gateway down, ...)"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Send a picture (with the next chat message)",
+        "tags": [
+          "Chat"
         ]
       }
     },

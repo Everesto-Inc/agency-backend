@@ -448,6 +448,12 @@ class ConversationSummary(BaseModel):
     updated_at: datetime
 
 
+class SentPicture(BaseModel):
+    id: str
+    path: str = Field(..., description="GET it with your Bearer token (only you can load it)")
+    description: str | None = Field(None, description="What the vision model saw — what the assistants got")
+
+
 class ConversationMessage(BaseModel):
     request_id: str
     topic: str
@@ -458,6 +464,8 @@ class ConversationMessage(BaseModel):
     total_tokens: int
     cost_usd: float
     models: list[str] = Field(default_factory=list, description="Models that answered (from the LLM call ledger)")
+    images: list[SentPicture] = Field(default_factory=list, description="Pictures the user sent with this question")
+
 
 
 class Conversation(ConversationSummary):

@@ -69,10 +69,24 @@ Browse it: [redis.everesto.live](https://redis.everesto.live) (GitHub login, pla
     New Redis code must build its keys with `rkey()` too, or the shared Redis answers `NOPERM`.
 
 
-## Pictures in answers
+## Pictures
 
-Ask EV Helper *"show me a picture of the Model Y"* → it uses the picture already found with the cached specs
-(`ev_model_specs.image_url`, no new search); otherwise one image search, remembered for next time.
-The picture is **downloaded once** (public address only, real image, ≤ 1.5 MB, no redirects), stored in MySQL
-`images` (id = sha256 of the source address) and served by `GET /api/v1/images/<id>` — cacheable, only stored
-pictures, not an open proxy. The chat shows only `/api/v1/images/<id>` pictures, never third-party links.
+The pictures themselves are in **OCI Object Storage** (bucket `dev-agency-media`, private, versioning off,
+`oracle_infra` 03_storage). MySQL `images` (migration 0007) only says what each one is and who may see it.
+
+| Kind | Where in the bucket | Who sees it | Deleted |
+|---|---|---|---|
+| **web** — EV "show me a picture of the Model Y" | `agency/web/<sha256 of the source>` | everyone (public web pictures) | never (shared, stored once) |
+| **upload** — a picture the user sent with a question | `agency/uploads/<user>/<id>` | only that user | with the chat · the account · after 30 days (retention) |
+
+- **Web:** the one found with the cached specs is reused (`ev_model_specs.image_url`, no new search), otherwise one
+  image search, remembered for next time. Downloaded once: public address only, ≤ 1.5 MB, no redirects.
+- **Uploads:** sent only when the user presses **Send** (paste / drop / 📎 only show a preview in the browser, which
+  also shrinks the picture to ≤ 1600 px). Max 4 per message, ≤ 2 MB, JPEG / PNG / WebP — the type is decided from
+  the file's bytes. 60 per user per day.
+- **What the assistants get:** never the picture. A cheap vision model (task `vision`, `prompts/vision.yaml`) writes
+  one line per picture, appended to the question. So every assistant works unchanged, the chat memory stays
+  small, and follow-up questions don't pay for the picture again.
+- **Serving:** only through `GET /api/v1/images/<id>` (web: public, cached for a year · uploads: owner's Bearer
+  token only). The chat shows only `/api/v1/images/<id>` pictures, never third-party links.
+- **Settings:** `S3_*` in `.env.example`. Not set → no pictures in answers, uploads refused; everything else works.

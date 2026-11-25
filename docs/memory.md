@@ -202,6 +202,12 @@ These move to **Admin → Settings** (edit without a code change) — see the ro
 ??? question "Can the assistant see other users' chats?"
     No. Every memory key and every database query is scoped to your user id.
 
+??? question "Does the assistant remember a picture I sent?"
+    Yes — as **text**. When you send a picture, a cheap vision model writes one line about it (e.g. *"white Tesla
+    Model Y, German plates"*). That line goes into the question and the memory, so follow-ups know what the picture
+    showed without paying for the picture again. The picture itself stays in storage and is shown in your chat
+    history; it is deleted with the chat.
+
 ??? question "Does memory make answers slower?"
     No. Reading memory is one Redis lookup (plus one MySQL read when it was expired). The summary is written in
     the background after your answer.

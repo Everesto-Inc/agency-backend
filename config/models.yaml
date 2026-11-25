@@ -67,6 +67,7 @@ routing:
     intent_parsing: low
     extraction: low
     summarization: low
+    vision: low                   # one-line description of a picture the user sent (prompts/vision.yaml)
     query_planning: low
     compliance_review: low
     synthesis: mid

@@ -18,6 +18,8 @@ from agency_platform.config.registry import evals, privacy, prompt_store, topics
 from agency_platform.db import close_db, init_db
 from agency_platform.observability.logging import configure_logging
 from agency_platform.repositories import EvalRepository, RetentionRepository
+from agency_platform.tools.images import ImageStore
+from agency_platform.tools.objectstore import ObjectStore
 from quality import drift, maintenance, offline, online
 from quality.client import AgencyClient
 from quality.datasets import load_cases
@@ -114,7 +116,12 @@ async def _main(args: argparse.Namespace) -> int:
                 print(await maintenance.export_approved_cases(EvalRepository(await init_db(s)), s.evals_dir))
                 return 0
             if args.cmd == "retention":
-                print(await RetentionRepository(await init_db(s)).apply(privacy().retention))
+                db = await init_db(s)
+                result = await RetentionRepository(db).apply(privacy().retention)
+                # pictures users sent: same lifetime as the question text (bucket object + row)
+                result["uploaded_pictures"] = await ImageStore(db, http, ObjectStore.from_settings(s, http)) \
+                    .delete_uploads_older_than(privacy().retention.run_text_days)
+                print(result)
                 return 0
             if args.cmd == "smoke":
                 return await run_smoke(s, http)

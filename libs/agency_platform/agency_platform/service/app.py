@@ -52,6 +52,8 @@ class ServiceSpec:
     use_db: bool = True
     use_redis: bool = True
     extra_readiness: dict[str, ReadinessCheck] = field(default_factory=dict)
+    # Bigger request bodies for some paths only (path prefix → bytes), e.g. picture uploads.
+    body_limits: dict[str, int] = field(default_factory=dict)
 
 
 def error_envelope(code: str, message: str, details: dict | None = None) -> dict:
@@ -115,7 +117,7 @@ def create_service_app(settings: PlatformSettings, spec: ServiceSpec) -> FastAPI
             allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
             expose_headers=["X-Request-ID"],
         )
-    app.add_middleware(BodySizeLimitMiddleware, max_bytes=settings.max_request_body_bytes)
+    app.add_middleware(BodySizeLimitMiddleware, max_bytes=settings.max_request_body_bytes, overrides=spec.body_limits)
     app.add_middleware(SecurityHeadersMiddleware, hsts=not settings.is_dev)
     app.add_middleware(RequestContextMiddleware, service=settings.service_name)
 

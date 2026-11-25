@@ -54,6 +54,15 @@ class PlatformSettings(BaseSettings):
     # starting with this prefix, e.g. "orchid-agency-backend:". Empty locally.
     redis_key_prefix: str = ""
 
+    # Pictures (OCI Object Storage, S3-compatible API) — oracle_infra 03_storage, bucket dev-agency-media.
+    # All empty = pictures switched off (no pictures in answers, uploads refused); everything else works.
+    s3_endpoint: SecretStr | None = None   # https://<namespace>.compat.objectstorage.<region>.oraclecloud.com
+    s3_region: str = "eu-paris-1"
+    s3_bucket: str = ""
+    s3_prefix: str = "agency/"
+    s3_access_key_id: SecretStr | None = None
+    s3_secret_access_key: SecretStr | None = None
+
     # User auth. Prod uses asymmetric keys: only the edge gateway holds the
     # private key (can mint tokens); every other service only verifies.
     jwt_private_key: SecretStr | None = None  # PEM, EdDSA (edge gateway only)

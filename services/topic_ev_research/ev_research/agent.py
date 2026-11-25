@@ -6,9 +6,11 @@ from fastapi import FastAPI
 
 from agency_platform.agents.base import AgentEvent, RunContext, TopicAgent
 from agency_platform.cache import get_redis
+from agency_platform.config.settings import get_settings
 from agency_platform.db import get_db
 from agency_platform.tools.fx import FXRates
 from agency_platform.tools.images import ImageStore
+from agency_platform.tools.objectstore import ObjectStore
 from ev_research.graph import build_graph
 from ev_research.params import params
 from ev_research.sources import CrawlerPool, FactSources, build_search
@@ -37,7 +39,8 @@ class EVResearchAgent(TopicAgent):
         await self._crawler.start()
         self._sources = FactSources(self._crawler, build_search(app.state.http))
         self._fx = FXRates(app.state.http, get_redis(), lambda: (params().fx.url, params().fx.cache_ttl_s))
-        self._images = ImageStore(get_db(), app.state.http)
+        # pictures in answers: on only when the bucket is configured (S3_*); otherwise EV says it can't show one
+        self._images = ImageStore(get_db(), app.state.http, ObjectStore.from_settings(get_settings(), app.state.http))
         self._graph = build_graph()
 
     async def shutdown(self) -> None:

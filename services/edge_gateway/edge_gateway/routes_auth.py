@@ -16,6 +16,7 @@ from agency_platform.config.settings import get_settings
 from agency_platform.db import get_db
 from agency_platform.errors import UnauthorizedError
 from agency_platform.service import client_ip, openapi
+from edge_gateway.routes_images import image_store
 from edge_gateway.schemas import AccountExport, Me, TokenPair
 
 router = APIRouter()
@@ -170,11 +171,12 @@ async def export_me(user: CurrentUser, repo: Accounts, rl: Limiter) -> AccountEx
 
 @router.delete("/me", status_code=204, tags=ACCOUNT, summary="Permanently delete my account and personal data",
                responses={**openapi.AUTHED, **openapi.errors(422)})
-async def erase_me(body: EraseBody, user: CurrentUser, repo: Accounts, refresh: Refresh) -> None:
+async def erase_me(body: EraseBody, user: CurrentUser, repo: Accounts, refresh: Refresh, request: Request) -> None:
     if not body.confirm:
         raise UnauthorizedError("Confirmation required")
     await repo.authenticate(user.email, body.password)  # re-auth before a destructive action
     await refresh.revoke_all(user.id)
     await repo.erase(user.id)
     await SessionStore(get_redis()).forget_user(user.id)
+    await image_store(request).delete_user(user.id)   # pictures the user sent (bucket + rows)
     await get_account_directory().invalidate(user.id)
