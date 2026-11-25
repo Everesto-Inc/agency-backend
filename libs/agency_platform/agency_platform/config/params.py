@@ -10,6 +10,9 @@ version keeps serving, so a typo in a ConfigMap can't take the fleet down.
 
 Overrides (Admin → Settings): a dict merged over the file (config/overrides.py keeps it in sync from MySQL).
 An override that doesn't validate together with the file is ignored — the file alone keeps serving.
+
+Drafts (testing a config before it goes live): a request may carry a draft (config.drafts.current_draft) — then
+get() returns file + that draft's values for THIS request only. Live traffic never sees a draft.
 """
 import logging
 import threading
@@ -64,6 +67,8 @@ class ParamFile(Generic[M]):
         self._raw: dict[str, Any] = {}
         self._override: dict[str, Any] = {}
         self.override_rejected: str | None = None   # why the current override is not applied (None = applied)
+        self.section: str | None = None              # Admin → Settings section name (set by config.overrides)
+        self._draft_cache: dict[int, M] = {}
 
     @property
     def path(self) -> Path:
@@ -75,7 +80,7 @@ class ParamFile(Generic[M]):
 
     def file_values(self) -> dict[str, Any]:
         """The file as written (the defaults Admin → Settings edits on top of)."""
-        self.get()
+        self._live()
         return self._raw
 
     @property
@@ -94,6 +99,25 @@ class ParamFile(Generic[M]):
         return self._model.model_validate(deep_merge(self.file_values(), override))
 
     def get(self) -> M:
+        if self.section is not None:
+            from agency_platform.config.drafts import current_draft  # lazy: no import cycle
+            draft = current_draft()
+            if draft is not None and self.section in draft.sections:
+                return self._draft_value(draft.id, draft.sections[self.section])
+        return self._live()
+
+    def _draft_value(self, draft_id: int, override: dict[str, Any]) -> M:
+        if draft_id not in self._draft_cache:
+            try:
+                self._draft_cache[draft_id] = self.validate_with(override)
+            except ValidationError:
+                logger.error("draft not valid for this file; serving live", extra={"path": str(self._path), "draft": draft_id})
+                return self._live()
+            if len(self._draft_cache) > 20:
+                self._draft_cache.pop(next(iter(self._draft_cache)))
+        return self._draft_cache[draft_id]
+
+    def _live(self) -> M:
         try:
             mtime = self._path.stat().st_mtime
         except FileNotFoundError as exc:

@@ -14,7 +14,15 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from agency_platform.config.params import ParamFile
-from agency_platform.config.registry import evals_file, guardrails_file, memory_file, plans_file, privacy_file
+from agency_platform.config.registry import (
+    evals_file,
+    guardrails_file,
+    memory_file,
+    models_file,
+    plans_file,
+    privacy_file,
+    prompt_store,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,22 +38,36 @@ class Section:
     file: Callable[[], ParamFile]
 
 
-SECTIONS: dict[str, Section] = {s.name: s for s in [
+_BASE = [
     Section("plans", "Plans & limits", "Daily tokens / cost, requests per minute, which assistants each plan has, "
                                        "the plan new accounts get.", plans_file),
+    Section("models", "Models & routing", "Which models exist (cost, timeout), which model serves each tier, "
+                                          "which tier each task gets, canaries.", models_file),
     Section("guardrails", "Guardrails", "Injection check (off / flag / block), picture limits.", guardrails_file),
     Section("memory", "Chat memory", "How many messages the assistants read word for word, when older ones are "
                                      "folded into the summary, the fast copy's size and lifetime.", memory_file),
     Section("privacy", "Privacy & retention", "PII masking, how long texts, pictures and logs are kept.", privacy_file),
     Section("evals", "Quality checks", "Online judge sampling, drift and offline eval settings.", evals_file),
-]}
+]
+
+
+def sections() -> dict[str, Section]:
+    """Every editable section: the config files + one per prompt file (prompts_<topic>)."""
+    store = prompt_store()
+    out = {s.name: s for s in _BASE}
+    for topic in store.topics():
+        out[f"prompts_{topic}"] = Section(
+            f"prompts_{topic}", f"Prompts · {topic}",
+            f"The instructions the assistants get (prompts/{topic}.yaml): system prompts, temperature, "
+            "max tokens, A/B experiments.", lambda t=topic: store.file(t))
+    return out
 
 
 async def apply_live(db) -> int:
     """Load the newest version of every section into its ParamFile. Returns how many sections have an override."""
     from agency_platform.repositories.settings import SettingsRepository
     live = await SettingsRepository(db).live()
-    for name, section in SECTIONS.items():
+    for name, section in sections().items():
         section.file().set_override(live.get(name, {}).get("content") or {})
     return sum(1 for v in live.values() if v.get("content"))
 

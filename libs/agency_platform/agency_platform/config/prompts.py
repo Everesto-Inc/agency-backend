@@ -120,10 +120,19 @@ class PromptStore:
         self._dir = prompts_dir
         self._files: dict[str, ParamFile[PromptFile]] = {}
 
-    def _file(self, topic: str) -> PromptFile:
+    def file(self, topic: str) -> ParamFile[PromptFile]:
         if topic not in self._files:
-            self._files[topic] = ParamFile(self._dir / f"{topic}.yaml", PromptFile)
-        return self._files[topic].get()
+            f = ParamFile(self._dir / f"{topic}.yaml", PromptFile)
+            f.section = f"prompts_{topic}"       # Admin → Settings / drafts can change prompts
+            self._files[topic] = f
+        return self._files[topic]
+
+    def topics(self) -> list[str]:
+        """Prompt files on disk (prompts/<topic>.yaml)."""
+        return sorted(p.stem for p in self._dir.glob("*.yaml"))
+
+    def _file(self, topic: str) -> PromptFile:
+        return self.file(topic).get()
 
     def get(self, topic: str, name: str, subject: str | None = None) -> Prompt:
         pf = self._file(topic)

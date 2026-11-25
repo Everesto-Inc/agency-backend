@@ -4,14 +4,12 @@ from fastapi import FastAPI
 
 from agency_platform.billing.usage import UsageMeter
 from agency_platform.cache import get_redis
-from agency_platform.config.params import ParamFile
-from agency_platform.config.registry import plans, privacy, prompt_store, topics
+from agency_platform.config.registry import models_file, plans, privacy, prompt_store, topics
 from agency_platform.config.settings import get_settings
 from agency_platform.db import get_db
 from agency_platform.repositories import LlmCallRepository
 from agency_platform.service import ServiceSpec, create_service_app
 from model_gateway.api import GatewayState, router
-from model_gateway.catalog import ModelsFile
 from model_gateway.classifier import ComplexityClassifier
 from model_gateway.executor import Executor
 from model_gateway.llm_cache import LLMCache
@@ -23,7 +21,7 @@ settings = get_settings(GatewaySettings)
 
 
 async def startup(app: FastAPI) -> None:
-    models = ParamFile(settings.config_dir / "models.yaml", ModelsFile)
+    models = models_file()   # shared ParamFile: Admin → Settings overrides + drafts apply
     models.get()  # fail fast on an invalid catalog
     plans()
     topics()

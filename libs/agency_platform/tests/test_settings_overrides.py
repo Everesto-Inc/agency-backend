@@ -77,5 +77,75 @@ async def test_sync_applies_only_when_the_counter_changes(monkeypatch):
 
 
 def test_every_section_has_a_valid_file():
-    for section in ov.SECTIONS.values():
+    for section in ov.sections().values():
         assert section.file().get() is not None, section.name
+
+
+# ---- drafts: a request can test a config without anyone else seeing it ------------------------------------
+from agency_platform.config import drafts as dr
+from agency_platform.llm.call_token import CallClaims, mint_call_token, verify_call_token
+
+
+def test_header_parsing():
+    assert dr.parse_header("12") == 12 and dr.parse_header(" 7 ") == 7
+    assert dr.parse_header(None) is None and dr.parse_header("abc") is None and dr.parse_header("0") is None
+
+
+async def test_a_draft_applies_only_inside_its_request(memfile):
+    import asyncio
+    import contextvars
+    memfile.section = "memory"
+
+    async def in_request():
+        dr.use_draft(dr.Draft(id=1, sections={"memory": {"recent": 8}}))
+        await asyncio.sleep(0)
+        return memfile.get().recent
+
+    inside = await asyncio.create_task(in_request(), context=contextvars.copy_context())
+    assert inside == 8 and memfile.get().recent == 4               # outside the request: live
+
+
+def test_invalid_draft_falls_back_to_live(memfile):
+    memfile.section = "memory"
+    token = dr._current.set(dr.Draft(id=2, sections={"memory": {"recent": 999}}))
+    try:
+        assert memfile.get().recent == 4
+    finally:
+        dr._current.reset(token)
+
+
+def test_call_token_carries_the_draft_signed():
+    secret = "s" * 40
+    t = mint_call_token(CallClaims("ev_research", "u1", "pro", "r1", config_draft=12), secret, 60)
+    assert verify_call_token(t, secret).config_draft == 12
+    assert verify_call_token(mint_call_token(CallClaims("ev_research", "u1", "pro", "r1"), secret, 60), secret).config_draft is None
+
+
+async def test_only_admins_and_service_accounts_may_send_a_draft(monkeypatch):
+    from types import SimpleNamespace
+
+    from agency_platform.auth import deps
+    from agency_platform.errors import ForbiddenError
+
+    async def auth(token, tokens, directory):
+        return deps.AuthenticatedUser(id="u1", email="x@example.com", role=token, plan="pro")
+
+    async def activate(draft_id):
+        return dr.Draft(id=draft_id) if draft_id == 5 else None
+    monkeypatch.setattr(deps, "authenticate_token", auth)
+    monkeypatch.setattr(deps, "activate", activate)
+    req = SimpleNamespace(headers={dr.HEADER: "5"})
+    creds = lambda role: SimpleNamespace(scheme="Bearer", credentials=role)  # noqa: E731
+    with pytest.raises(ForbiddenError):
+        await deps.get_current_user(req, creds("user"), None, None)
+    assert (await deps.get_current_user(req, creds("service"), None, None)).role == "service"
+    with pytest.raises(ForbiddenError):
+        await deps.get_current_user(SimpleNamespace(headers={dr.HEADER: "6"}), creds("admin"), None, None)
+
+
+def test_sections_include_models_and_every_prompt_file():
+    names = set(ov.sections())
+    assert {"plans", "models", "guardrails", "memory", "privacy", "evals"} <= names
+    assert {"prompts_ev_research", "prompts_memory", "prompts_vision"} <= names
+    for s in ov.sections().values():
+        assert s.file().section == s.name                                  # drafts can find every file

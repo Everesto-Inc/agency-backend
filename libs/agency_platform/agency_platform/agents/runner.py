@@ -28,6 +28,7 @@ from agency_platform.agents.response_cache import CachedAnswer, ResponseCache
 from agency_platform.agents.sessions import SessionStore, messages_to_fold, turns_from_runs
 from agency_platform.auth.deps import AuthenticatedUser
 from agency_platform.billing.usage import RateLimiter, UsageMeter
+from agency_platform.config.drafts import current_draft
 from agency_platform.config.prompts import PromptStore
 from agency_platform.config.registry import evals, guardrails, privacy, topics
 from agency_platform.config.schemas import TopicConfig
@@ -387,6 +388,7 @@ class TopicRunner:
                 plan=req.user.plan,
                 request_id=req.request_id,
                 session_id=req.session_id,
+                config_draft=draft.id if (draft := current_draft()) else None,
             ),
             secret.get_secret_value(),
             ttl_s=cfg.run_timeout_s + 60,

@@ -30,6 +30,7 @@ class CallClaims:
     plan: str
     request_id: str
     session_id: str | None = None
+    config_draft: int | None = None   # Admin → Experiments: this call uses a config draft (signed, can't be forged)
 
 
 def mint_call_token(claims: CallClaims, secret: str, ttl_s: int) -> str:
@@ -41,6 +42,7 @@ def mint_call_token(claims: CallClaims, secret: str, ttl_s: int) -> str:
         "plan": claims.plan,
         "rid": claims.request_id,
         "sid": claims.session_id,
+        **({"cfg": claims.config_draft} if claims.config_draft else {}),
         "jti": uuid.uuid4().hex,
         "iat": now,
         "exp": now + ttl_s,
@@ -71,4 +73,5 @@ def verify_call_token(token: str, secret: str) -> CallClaims:
         plan=payload.get("plan", ""),
         request_id=payload["rid"],
         session_id=payload.get("sid"),
+        config_draft=payload.get("cfg") if isinstance(payload.get("cfg"), int) else None,
     )

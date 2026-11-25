@@ -13,6 +13,8 @@ from pydantic import BaseModel, Field
 
 from agency_platform.agents.schemas import SESSION_ID_PATTERN, SSE_EXAMPLE, RunResponse
 from agency_platform.auth.deps import AuthenticatedUser, CurrentUser
+from agency_platform.config.drafts import HEADER as DRAFT_HEADER
+from agency_platform.config.drafts import current_draft
 from agency_platform.config.registry import privacy, prompt_store, topics
 from agency_platform.config.settings import get_settings
 from agency_platform.db import get_db
@@ -79,7 +81,8 @@ def _gateway_client(user: AuthenticatedUser, request: Request) -> ModelGatewayCl
     if settings.model_gateway_client_secret is None:
         return None
     token = mint_call_token(
-        CallClaims(client_id="edge", user_id=user.id, plan=user.plan, request_id=request.state.request_id),
+        CallClaims(client_id="edge", user_id=user.id, plan=user.plan, request_id=request.state.request_id,
+                   config_draft=draft.id if (draft := current_draft()) else None),
         settings.model_gateway_client_secret.get_secret_value(),
         ttl_s=60,
     )
@@ -137,6 +140,7 @@ async def chat(body: ChatBody, request: Request, user: CurrentUser):
         "Authorization": request.headers["authorization"],
         "X-Request-ID": request.state.request_id,
         "Content-Type": "application/json",
+        **({DRAFT_HEADER: str(d.id)} if (d := current_draft()) else {}),   # testing a config draft
     }
     payload = {"prompt": prompt, "session_id": body.session_id, "stream": body.stream}
     routed = {"topic": choice.topic, "confidence": choice.confidence, "method": choice.method}

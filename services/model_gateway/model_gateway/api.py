@@ -20,6 +20,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, ConfigDict, Field
 
 from agency_platform.billing.usage import UsageMeter
+from agency_platform.config.drafts import activate
 from agency_platform.config.params import ParamFile
 from agency_platform.config.prompts import PromptStore
 from agency_platform.config.registry import plans, privacy
@@ -90,6 +91,7 @@ async def authenticate(
     if claims.client_id != client_id:
         raise UnauthorizedError("Client mismatch")
     user_id_var.set(claims.user_id)
+    await activate(claims.config_draft)   # testing a config draft: models / plans / privacy from the draft
     return claims
 
 

@@ -11,14 +11,13 @@ import time
 
 import litellm
 
-from agency_platform.config.params import ParamFile
-from model_gateway.catalog import ModelsFile
+from agency_platform.config.registry import models_file
 from model_gateway.settings import GatewaySettings
 
 
 async def main() -> int:
     settings = GatewaySettings()
-    models = ParamFile(settings.config_dir / "models.yaml", ModelsFile).get()
+    models = models_file().get()
     failures = 0
     for model_id, spec in models.models.items():
         if not spec.enabled:

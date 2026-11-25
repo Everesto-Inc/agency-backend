@@ -3,12 +3,14 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Annotated
 
-from fastapi import Depends, Security
+from fastapi import Depends, Request, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from agency_platform.auth.accounts import AccountDirectory, AccountRepository
 from agency_platform.auth.tokens import TokenService
 from agency_platform.cache import get_redis
+from agency_platform.config.drafts import HEADER as DRAFT_HEADER
+from agency_platform.config.drafts import activate, parse_header
 from agency_platform.config.registry import plans
 from agency_platform.config.schemas import PlanConfig
 from agency_platform.config.settings import get_settings
@@ -72,14 +74,22 @@ bearer_scheme = HTTPBearer(
 
 
 async def get_current_user(
+    request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Security(bearer_scheme)],
     tokens: TokenService = Depends(get_token_service),
     directory: AccountDirectory = Depends(get_account_directory),
 ) -> AuthenticatedUser:
-    """Bearer-header auth only. Tokens in query strings leak into logs/proxies."""
+    """Bearer-header auth only. Tokens in query strings leak into logs/proxies.
+    A config draft header (testing a config) is honoured for admin / service accounts only."""
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise UnauthorizedError("Missing bearer token")
-    return await authenticate_token(credentials.credentials, tokens, directory)
+    user = await authenticate_token(credentials.credentials, tokens, directory)
+    if (draft_id := parse_header(request.headers.get(DRAFT_HEADER))) is not None:
+        if user.role not in ("admin", "service"):
+            raise ForbiddenError("Config drafts can only be tested by admins and service accounts")
+        if await activate(draft_id) is None:
+            raise ForbiddenError(f"Config draft {draft_id} not found")
+    return user
 
 
 CurrentUser = Annotated[AuthenticatedUser, Depends(get_current_user)]

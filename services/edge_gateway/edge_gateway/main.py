@@ -86,7 +86,8 @@ app = create_service_app(
             (settings_router, "/api/v1/admin/settings"),
             (admin_router, "/api/v1/admin"),
         ],
-        body_limits={"/api/v1/uploads": UPLOAD_BODY_LIMIT},
+        body_limits={"/api/v1/uploads": UPLOAD_BODY_LIMIT,
+                     "/api/v1/admin/settings": 2_000_000},   # config files / drafts with all prompts
         on_startup=[startup, start_quality_gauges],
         on_shutdown=[stop_quality_gauges],
     ),
