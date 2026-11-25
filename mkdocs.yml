@@ -7,6 +7,7 @@ nav:
   - Run it locally: getting-started.md
   - Architecture: architecture.md
   - Chat memory: memory.md
+  - Admin guide (guardrails, settings, experiments): admin.md
   - Using the APIs: apis.md
   - Accounts & admins: accounts.md
   - LLMOps (models, usage, quality): llmops.md
