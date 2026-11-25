@@ -22,16 +22,19 @@ from typing import Any
 
 import httpx
 
+from agency_platform.config.registry import guardrails
 from agency_platform.db import Database
 from agency_platform.errors import BadRequestError, NotFoundError, ServiceUnavailableError, UpstreamError
+from agency_platform.security.guardrails import guardrail
 from agency_platform.security.ssrf import UnsafeURLError, assert_public_url
 from agency_platform.tools.objectstore import ObjectStore
 
 logger = logging.getLogger(__name__)
 
 MAX_WEB_BYTES = 1_500_000
-MAX_UPLOAD_BYTES = 2_000_000          # the browser sends ~300 KB (≤ 1600 px); this is the hard server limit
-MAX_PER_MESSAGE = 4
+# Hard ceilings; the working limits are config/guardrails.yaml → pictures (Admin → Settings), at most these.
+MAX_UPLOAD_BYTES = 10_000_000         # the browser sends ~300 KB (≤ 1600 px)
+MAX_PER_MESSAGE = 10
 PATH_PREFIX = "/api/v1/images/"
 UPLOAD_TYPES = ("image/jpeg", "image/png", "image/webp")
 WEB_TYPES = (*UPLOAD_TYPES, "image/gif", "image/avif")
@@ -117,7 +120,11 @@ class ImageStore:
         if await self._db.fetchval("SELECT 1 FROM images WHERE id = %s", (iid,)):
             return PATH_PREFIX + iid
         try:
-            await assert_public_url(url)
+            try:
+                await assert_public_url(url)
+            except UnsafeURLError as exc:
+                await guardrail("unsafe_url", "blocked", detail=f"picture: {exc}"[:200])
+                raise
             data = await self._download(url)
             content_type = sniff(data)
             if content_type not in WEB_TYPES:
@@ -151,8 +158,9 @@ class ImageStore:
     # ---- uploads (a user's pictures) --------------------------------------------
     async def save_upload(self, user_id: str, session_id: str, data: bytes) -> StoredImage:
         objects = self._require()
-        if len(data) > MAX_UPLOAD_BYTES:
-            raise BadRequestError(f"Picture too large (max {MAX_UPLOAD_BYTES // 1_000_000} MB)")
+        max_mb = guardrails().pictures.max_upload_mb
+        if len(data) > min(MAX_UPLOAD_BYTES, int(max_mb * 1_000_000)):
+            raise BadRequestError(f"Picture too large (max {max_mb:g} MB)")
         content_type = sniff(data)
         if content_type not in UPLOAD_TYPES:
             raise BadRequestError("Only JPEG, PNG or WebP pictures can be sent")
@@ -169,8 +177,9 @@ class ImageStore:
     async def attach(self, user_id: str, session_id: str, ids: list[str], request_id: str) -> list[StoredImage]:
         """The user's own, not-yet-sent uploads of this chat → linked to the question. Anything else is refused."""
         ids = list(dict.fromkeys(ids))
-        if len(ids) > MAX_PER_MESSAGE:
-            raise BadRequestError(f"At most {MAX_PER_MESSAGE} pictures per message")
+        per_message = min(MAX_PER_MESSAGE, guardrails().pictures.per_message)
+        if len(ids) > per_message:
+            raise BadRequestError(f"At most {per_message} pictures per message")
         if not all(is_image_id(i) for i in ids):
             raise BadRequestError("Unknown picture")
         out = []

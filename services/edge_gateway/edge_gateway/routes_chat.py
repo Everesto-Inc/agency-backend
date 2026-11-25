@@ -16,11 +16,12 @@ from agency_platform.auth.deps import AuthenticatedUser, CurrentUser
 from agency_platform.config.registry import privacy, prompt_store, topics
 from agency_platform.config.settings import get_settings
 from agency_platform.db import get_db
-from agency_platform.errors import BadRequestError, ServiceUnavailableError, SubscriptionRequiredError
+from agency_platform.errors import AppError, BadRequestError, ServiceUnavailableError, SubscriptionRequiredError
 from agency_platform.llm.call_token import CallClaims, mint_call_token
 from agency_platform.llm.client import ModelGatewayClient
 from agency_platform.repositories import ConversationRepository, title_from_prompt
 from agency_platform.security.content import clean_user_prompt
+from agency_platform.security.guardrails import guardrail
 from agency_platform.security.pii import redact
 from agency_platform.service import openapi
 from agency_platform.tools.images import MAX_PER_MESSAGE
@@ -99,10 +100,18 @@ def _gateway_client(user: AuthenticatedUser, request: Request) -> ModelGatewayCl
 async def chat(body: ChatBody, request: Request, user: CurrentUser):
     """Picks the topic (keywords first, a cheap LLM classification only when unclear), checks
     the plan includes it, then runs that topic's agent. Same result as calling the topic directly."""
-    prompt = clean_user_prompt(body.prompt, 20_000)
+    try:
+        prompt = clean_user_prompt(body.prompt, 20_000)
+    except AppError as exc:
+        await guardrail("input_rejected", "blocked", detail=exc.message[:120])
+        raise
     enabled = topics().enabled()
     if body.image_ids:
-        prompt = await _with_pictures(body, prompt, request, user)
+        try:
+            prompt = await _with_pictures(body, prompt, request, user)
+        except BadRequestError as exc:
+            await guardrail("upload_refused", "blocked", detail=exc.message[:120])
+            raise
 
     if body.topic:
         if body.topic not in enabled:
@@ -118,7 +127,11 @@ async def chat(body: ChatBody, request: Request, user: CurrentUser):
                 available=list(enabled),
             )
 
-    user.require_topic(choice.topic)  # fast upsell answer before any proxying
+    try:
+        user.require_topic(choice.topic)  # fast upsell answer before any proxying
+    except AppError as exc:
+        await guardrail("plan", "blocked", topic=choice.topic, detail=exc.code)
+        raise
     target = f"{str(enabled[choice.topic].service_url).rstrip('/')}/api/v1/{choice.topic}/run"
     headers = {
         "Authorization": request.headers["authorization"],

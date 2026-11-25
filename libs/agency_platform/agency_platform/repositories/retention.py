@@ -50,6 +50,10 @@ class RetentionRepository:
                 "DELETE FROM eval_results WHERE created_at < UTC_TIMESTAMP(6) - INTERVAL %s DAY LIMIT %s",
                 cfg.eval_results_days,
             ),
+            "guardrail_events": await self._chunked(
+                "DELETE FROM guardrail_events WHERE created_at < UTC_TIMESTAMP(6) - INTERVAL %s DAY LIMIT %s",
+                cfg.guardrail_events_days,
+            ),
             "refresh_tokens": await self._chunked(
                 """DELETE FROM refresh_tokens
                    WHERE (revoked_at IS NOT NULL OR expires_at < UTC_TIMESTAMP(6))

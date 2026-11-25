@@ -98,6 +98,24 @@ class RetentionConfig(BaseModel):
     llm_calls_days: int = Field(180, ge=1)
     eval_results_days: int = Field(365, ge=1)
     expired_refresh_tokens_days: int = Field(7, ge=1)
+    guardrail_events_days: int = Field(90, ge=1)
+
+
+class InjectionConfig(BaseModel):
+    mode: Literal["off", "flag", "block"] = "flag"
+    threshold: float = Field(0.6, gt=0, le=1)
+    llm_check: bool = False
+
+
+class PictureLimits(BaseModel):
+    per_message: int = Field(4, ge=1, le=10)
+    per_day: int = Field(60, ge=1, le=10_000)
+    max_upload_mb: float = Field(2.0, gt=0, le=10)
+
+
+class GuardrailsFile(BaseModel):
+    injection: InjectionConfig = InjectionConfig()
+    pictures: PictureLimits = PictureLimits()
 
 
 class PrivacyFile(BaseModel):

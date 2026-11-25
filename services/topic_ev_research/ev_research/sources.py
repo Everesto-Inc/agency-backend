@@ -11,7 +11,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 import pycountry
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, LLMConfig, LLMExtractionStrategy
@@ -21,6 +21,7 @@ from agency_platform.agents.base import RunContext
 from agency_platform.errors import UpstreamError
 from agency_platform.security.content import UNTRUSTED_DATA_RULES
 from agency_platform.security.grounding import number_appears
+from agency_platform.security.guardrails import guardrail
 from agency_platform.security.ssrf import UnsafeURLError, assert_public_url
 from agency_platform.tools.search import WebSearch
 from ev_research import repository as repo
@@ -85,6 +86,9 @@ class CrawlerPool:
         page_text = str(getattr(result, "markdown", "") or "")
         if cfg.verify_numbers_on_page:
             data = _verify_on_page(data, page_text, url)
+            if dropped := data.pop("_dropped", None):
+                await guardrail("grounding", "dropped", topic="ev_research",
+                                detail=f"not on {urlsplit(url).hostname}: {', '.join(dropped)}")
         data["_source_url"] = url
         data["_image_url"] = _pick_image(result, url)
         return data
@@ -107,11 +111,15 @@ def _merge_chunks(raw: str) -> dict[str, Any]:
 
 def _verify_on_page(data: dict[str, Any], page_text: str, url: str) -> dict[str, Any]:
     """Null any number the model reported that isn't literally on the page."""
+    dropped = []
     for key, value in list(data.items()):
         if isinstance(value, int | float) and not isinstance(value, bool):
             if not number_appears(value, page_text):
                 logger.warning("extracted number not found on page; dropped", extra={"field": key, "url": url})
                 data[key] = None
+                dropped.append(key)
+    if dropped:
+        data["_dropped"] = dropped   # for the guardrail log (caller pops it)
     return data
 
 
@@ -152,6 +160,7 @@ class FactSources:
                 data = await self._crawler.extract(url, schema, instruction, ctx)
             except UnsafeURLError as exc:
                 last = f"blocked unsafe URL ({exc})"
+                await guardrail("unsafe_url", "blocked", topic="ev_research", detail=str(exc)[:200])
                 continue
             except Exception as exc:  # one bad page must not sink the run
                 logger.warning("crawl failed", extra={"url": url, "error": type(exc).__name__})

@@ -8,6 +8,7 @@ from agency_platform.agents.base import RunContext
 from agency_platform.errors import AppError
 from agency_platform.security.content import UNTRUSTED_DATA_RULES, fence_untrusted
 from agency_platform.security.grounding import money_appears, number_appears
+from agency_platform.security.guardrails import guardrail
 from agency_platform.security.ssrf import UnsafeURLError, safe_fetch
 from agency_platform.tools.search import WebSearch
 from product_finder.fx import FXRates
@@ -57,8 +58,9 @@ async def extract_offer(url: str, ctx: RunContext) -> Offer | None:
     f = params().fetch
     try:
         page = await safe_fetch(url, client=ctx.http, max_bytes=f.max_bytes, timeout_s=f.timeout_s)
-    except UnsafeURLError:
+    except UnsafeURLError as exc:
         logger.warning("blocked unsafe url", extra={"url": url})
+        await guardrail("unsafe_url", "blocked", topic="product_finder", detail=str(exc)[:200])
         return None
     except Exception as exc:
         logger.info("fetch failed", extra={"url": url, "error": type(exc).__name__})
@@ -98,6 +100,8 @@ async def extract_offer(url: str, ctx: RunContext) -> Offer | None:
         return None
     if params().extraction.verify_price_on_page and not money_appears(ex.price, ex.currency, text):
         logger.warning("extracted price not on page; dropped", extra={"url": page.url})
+        await guardrail("grounding", "dropped", topic="product_finder",
+                        detail=f"price not on {urlsplit(page.url).hostname}")
         return None
     shipping = ex.shipping if ex.shipping is not None and (ex.shipping == 0 or number_appears(ex.shipping, text)) else None
     return Offer(id=oid, retailer=retailer, url=page.url, title=(ex.title or title)[:300], price=ex.price,

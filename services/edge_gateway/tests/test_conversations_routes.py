@@ -158,6 +158,6 @@ async def test_chat_with_pictures_describes_them_for_the_assistants(monkeypatch)
     assert attached == [("u1", "s1", ["a" * 64], "req-9"), ("described", "a" * 64, "white Tesla Model Y")]
 
 
-def test_at_most_four_pictures_per_message():
+def test_hard_ceiling_of_pictures_per_message():   # the working limit (4) is config, checked in attach()
     with pytest.raises(ValueError):
-        routes_chat.ChatBody(prompt="x", image_ids=["a" * 64] * 5)
+        routes_chat.ChatBody(prompt="x", image_ids=["a" * 64] * 11)

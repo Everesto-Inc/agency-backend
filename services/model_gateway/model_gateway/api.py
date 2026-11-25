@@ -29,6 +29,7 @@ from agency_platform.llm.client import H_MIN_TIER, H_MODEL, H_PROMPT_REF, H_ROUT
 from agency_platform.llm.tiers import AUTO_ALIAS, Tier, task_alias, tier_alias
 from agency_platform.observability.logging import user_id_var
 from agency_platform.observability.metrics import PII_REDACTIONS, ROUTING_DECISIONS
+from agency_platform.security.guardrails import guardrail
 from agency_platform.security.pii import redact_messages
 from agency_platform.service import openapi
 from model_gateway.catalog import ModelsFile
@@ -184,6 +185,10 @@ async def chat_completions(
         for entity, n in counts.items():
             PII_REDACTIONS.labels(entity).inc(n)
         redactions = sum(counts.values())
+        if redactions:
+            await guardrail("pii_masked", "masked", topic=usage_topic(claims.client_id), user_id=claims.user_id,
+                            request_id=claims.request_id,
+                            detail=", ".join(f"{e} ×{n}" for e, n in sorted(counts.items())))
 
     meta = CallMeta(
         request_id=claims.request_id,

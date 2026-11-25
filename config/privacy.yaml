@@ -18,3 +18,5 @@ retention:
   llm_calls_days: 180
   eval_results_days: 365
   expired_refresh_tokens_days: 7
+  # Guardrail event log (Admin → Guardrails): who/what/when only, never the user's text.
+  guardrail_events_days: 90

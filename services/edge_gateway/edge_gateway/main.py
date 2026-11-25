@@ -53,6 +53,7 @@ TAGS = [
     {"name": "Admin: models & routing", "description": "Model performance, tier routing, canaries. Admin only."},
     {"name": "Admin: topics & experiments", "description": "Topic outcomes and prompt A/B tests. Admin only."},
     {"name": "Admin: quality & evals", "description": "Eval results, online judge scores, drift, eval-case curation. Admin only."},
+    {"name": "Admin: guardrails", "description": "Every time a guardrail fired (quota, injection, PII, grounding, uploads…). Admin only."},
     {"name": "Admin: accounts & runs", "description": "Plans, disabling users, run and LLM-call inspection. Admin only."},
 ]
 

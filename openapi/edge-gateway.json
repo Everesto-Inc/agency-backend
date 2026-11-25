@@ -399,7 +399,7 @@
             "items": {
               "type": "string"
             },
-            "maxItems": 4,
+            "maxItems": 10,
             "title": "Image Ids",
             "type": "array"
           },
@@ -1172,6 +1172,186 @@
           "judged_runs"
         ],
         "title": "ExperimentArm",
+        "type": "object"
+      },
+      "GuardrailDay": {
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "kind → events that day",
+            "title": "Counts",
+            "type": "object"
+          },
+          "day": {
+            "title": "Day",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "total",
+          "counts"
+        ],
+        "title": "GuardrailDay",
+        "type": "object"
+      },
+      "GuardrailEvent": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "topic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic"
+          },
+          "user_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Email"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "service",
+          "kind",
+          "action",
+          "topic",
+          "user_id",
+          "user_email",
+          "request_id",
+          "detail"
+        ],
+        "title": "GuardrailEvent",
+        "type": "object"
+      },
+      "GuardrailReport": {
+        "properties": {
+          "daily": {
+            "items": {
+              "$ref": "#/components/schemas/GuardrailDay"
+            },
+            "title": "Daily",
+            "type": "array"
+          },
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "recent": {
+            "items": {
+              "$ref": "#/components/schemas/GuardrailEvent"
+            },
+            "title": "Recent",
+            "type": "array"
+          },
+          "totals": {
+            "items": {
+              "$ref": "#/components/schemas/GuardrailTotal"
+            },
+            "title": "Totals",
+            "type": "array"
+          }
+        },
+        "required": [
+          "days",
+          "totals",
+          "daily",
+          "recent"
+        ],
+        "title": "GuardrailReport",
+        "type": "object"
+      },
+      "GuardrailTotal": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "last_at": {
+            "format": "date-time",
+            "title": "Last At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "action",
+          "count",
+          "last_at"
+        ],
+        "title": "GuardrailTotal",
         "type": "object"
       },
       "LlmCall": {
@@ -3537,6 +3717,127 @@
         "summary": "Prompt A/B results per variant",
         "tags": [
           "Admin: topics & experiments"
+        ]
+      }
+    },
+    "/api/v1/admin/guardrails": {
+      "get": {
+        "description": "Never contains users' text — only what fired, where, and short technical detail.",
+        "operationId": "guardrail_report",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 7,
+              "maximum": 90,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Only this kind in `recent`",
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only this kind in `recent`",
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Older events (paging): created_at of the last one you have",
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Older events (paging): created_at of the last one you have",
+              "title": "Before"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuardrailReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing, invalid or expired access token"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Authenticated but not allowed (code SUBSCRIPTION_REQUIRED: the plan doesn't include this topic; FORBIDDEN: admin only)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Validation error: details.errors lists the offending fields"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Guardrails that fired: totals, per day, latest events",
+        "tags": [
+          "Admin: guardrails"
         ]
       }
     },
@@ -6040,6 +6341,10 @@
     {
       "description": "Eval results, online judge scores, drift, eval-case curation. Admin only.",
       "name": "Admin: quality & evals"
+    },
+    {
+      "description": "Every time a guardrail fired (quota, injection, PII, grounding, uploads…). Admin only.",
+      "name": "Admin: guardrails"
     },
     {
       "description": "Plans, disabling users, run and LLM-call inspection. Admin only.",

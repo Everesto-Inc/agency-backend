@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 import httpx
+from pydantic import BaseModel
 
 from agency_platform.agents.base import AgentEvent, RunContext, TopicAgent
 from agency_platform.agents.response_cache import CachedAnswer, ResponseCache
@@ -28,16 +29,19 @@ from agency_platform.agents.sessions import SessionStore, messages_to_fold, turn
 from agency_platform.auth.deps import AuthenticatedUser
 from agency_platform.billing.usage import RateLimiter, UsageMeter
 from agency_platform.config.prompts import PromptStore
-from agency_platform.config.registry import evals, privacy, topics
+from agency_platform.config.registry import evals, guardrails, privacy, topics
 from agency_platform.config.schemas import TopicConfig
 from agency_platform.config.settings import PlatformSettings
-from agency_platform.errors import AppError, RateLimitedError, ServiceUnavailableError
+from agency_platform.errors import AppError, BadRequestError, RateLimitedError, ServiceUnavailableError
 from agency_platform.llm.call_token import CallClaims, mint_call_token
 from agency_platform.llm.client import ModelGatewayClient
 from agency_platform.observability.metrics import AGENT_RUN_LATENCY, AGENT_RUNS, CACHE_EVENTS, QUOTA_REJECTIONS
 from agency_platform.repositories import ConversationRepository, RunRepository, RunResult
 from agency_platform.security.content import clean_user_prompt
+from agency_platform.security.guardrails import guardrail
+from agency_platform.security.injection import check
 from agency_platform.security.pii import redact
+from agency_platform.tools.vision import MARKER
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +56,11 @@ class RunRequest:
     prompt: str
     session_id: str
     request_id: str
+
+
+class _InjectionVerdict(BaseModel):
+    injection: bool = False
+    reason: str = ""
 
 
 @dataclass
@@ -103,7 +112,11 @@ class TopicRunner:
     # ------------------------------------------------------------------ preflight
     async def preflight(self, user: AuthenticatedUser, prompt: str) -> str:
         cfg = self.topic_config()
-        cleaned = clean_user_prompt(prompt, cfg.max_prompt_chars)
+        try:
+            cleaned = clean_user_prompt(prompt, cfg.max_prompt_chars)
+        except AppError as exc:
+            await guardrail("input_rejected", "blocked", topic=self.topic, detail=exc.message[:120], user_id=user.id)
+            raise
         try:
             user.require_topic(self.topic)
             plan = user.plan_config
@@ -113,8 +126,50 @@ class TopicRunner:
             await self._meter.check_topic_tokens(user.id, self.topic, plan)
         except (RateLimitedError, AppError) as exc:
             QUOTA_REJECTIONS.labels(self.topic, exc.code).inc()
+            kind = {"RATE_LIMITED": "rate_limit", "QUOTA_EXCEEDED": "quota"}.get(exc.code, "plan")
+            await guardrail(kind, "blocked", topic=self.topic, detail=exc.code, user_id=user.id)
             raise
-        return cleaned
+        return await self._screen(user, cleaned)
+
+    async def _screen(self, user: AuthenticatedUser, text: str) -> str:
+        """Injection tripwire on what the user controls: the question, and each picture's text (config/guardrails.yaml)."""
+        cfg = guardrails().injection
+        if cfg.mode == "off":
+            return text
+        block = cfg.mode == "block"
+        question, marker, pictures = text.partition(MARKER)
+        found = check(question)
+        if found.is_attempt(cfg.threshold):
+            await guardrail("injection", "blocked" if block else "flagged", topic=self.topic,
+                            detail=f"{found.detail} (question, score {found.score})", user_id=user.id)
+            if block:
+                raise BadRequestError("This message looks like an attempt to change the assistant's instructions, "
+                                      "so it was not run. Please rephrase your question.")
+        if not marker:
+            return text
+        lines = []
+        for line in pictures.split("\n"):
+            pic = check(line)
+            if line.strip() and pic.is_attempt(cfg.threshold):
+                await guardrail("injection", "blocked" if block else "flagged", topic=self.topic,
+                                detail=f"{pic.detail} (text in a picture, score {pic.score})", user_id=user.id)
+                if block:
+                    line = line.split(":", 1)[0] + ": (the text in this picture was withheld: it looked like instructions)"
+            lines.append(line)
+        return question + marker + "\n".join(lines)
+
+    async def _model_flags_injection(self, ctx: RunContext, question: str) -> bool:
+        """Second opinion from a cheap model for borderline questions (guardrails.yaml injection.llm_check)."""
+        try:
+            p = self._prompts.get("guardrails", "injection_check", subject=ctx.user.id)
+            verdict = await ctx.llm.structured(
+                [{"role": "system", "content": p.system}, {"role": "user", "content": question[:4000]}],
+                _InjectionVerdict, task="compliance_review", prompt=p, max_escalations=0,
+            )
+            return verdict.injection
+        except Exception:
+            logger.warning("injection model check failed", exc_info=True)
+            return False
 
     # ------------------------------------------------------------------ stream
     async def stream(self, req: RunRequest) -> AsyncIterator[AgentEvent]:
@@ -209,6 +264,16 @@ class TopicRunner:
                 CACHE_EVENTS.labels("response", self.topic, "miss").inc()
 
             ctx = self._build_context(req, cfg, history, summary)
+            inj = guardrails().injection
+            if inj.llm_check and inj.mode != "off":
+                question = req.prompt.partition(MARKER)[0]
+                found = check(question)
+                if inj.threshold / 2 <= found.score < inj.threshold and await self._model_flags_injection(ctx, question):
+                    await guardrail("injection", "blocked" if inj.mode == "block" else "flagged", topic=self.topic,
+                                    detail=f"{found.detail} + model check (score {found.score})")
+                    if inj.mode == "block":
+                        raise BadRequestError("This message looks like an attempt to change the assistant's "
+                                              "instructions, so it was not run. Please rephrase your question.")
             async with asyncio.timeout(cfg.run_timeout_s):
                 async for ev in self.agent.run(req.prompt, ctx):
                     if ev.type == "token":

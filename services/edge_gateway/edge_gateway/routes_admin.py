@@ -3,7 +3,7 @@ canaries, quality (evals + drift), eval-case curation, account management.
 
 Thin HTTP layer: every query lives in agency_platform.repositories."""
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from fastapi import APIRouter, Query
@@ -16,8 +16,9 @@ from agency_platform.config.registry import plans
 from agency_platform.config.settings import get_settings
 from agency_platform.db import get_db
 from agency_platform.errors import BadRequestError, NotFoundError
-from agency_platform.repositories import AdminMetrics, EvalRepository, RunRepository, UsageRepository
+from agency_platform.repositories import AdminMetrics, EvalRepository, GuardrailRepository, RunRepository, UsageRepository
 from agency_platform.repositories.admin_metrics import Window, f, opt_f
+from agency_platform.repositories.guardrails import day_series
 from agency_platform.repositories.usage import since, total
 from agency_platform.service import openapi
 from edge_gateway.schemas import (
@@ -120,6 +121,61 @@ async def quality(_: AdminUser, topic: str | None = None) -> list[TopicQuality]:
     for r in await repo.latest_drift(topic):
         out.setdefault(r["topic"], {})["drift"] = {"at": r["created_at"], "flagged": r["flagged"], "metrics": r["metrics"]}
     return [{"topic": t, **v} for t, v in sorted(out.items())]
+
+
+# =========================================================== guardrails
+GUARDRAILS = ["Admin: guardrails"]
+
+
+class GuardrailTotal(BaseModel):
+    kind: str
+    action: str
+    count: int
+    last_at: datetime
+
+
+class GuardrailDay(BaseModel):
+    day: str
+    total: int
+    counts: dict[str, int] = Field(description="kind → events that day")
+
+
+class GuardrailEvent(BaseModel):
+    id: int
+    created_at: datetime
+    service: str
+    kind: str
+    action: str
+    topic: str | None
+    user_id: str | None
+    user_email: str | None
+    request_id: str | None
+    detail: str
+
+
+class GuardrailReport(BaseModel):
+    days: int
+    totals: list[GuardrailTotal]
+    daily: list[GuardrailDay]
+    recent: list[GuardrailEvent]
+
+
+@admin_router.get("/guardrails", tags=GUARDRAILS, summary="Guardrails that fired: totals, per day, latest events")
+async def guardrail_report(
+    _: AdminUser,
+    days: int = Query(7, ge=1, le=90),
+    kind: str | None = Query(None, max_length=32, description="Only this kind in `recent`"),
+    limit: int = Query(100, ge=1, le=500),
+    before: datetime | None = Query(None, description="Older events (paging): created_at of the last one you have"),
+) -> GuardrailReport:
+    """Never contains users' text — only what fired, where, and short technical detail."""
+    repo = GuardrailRepository(get_db())
+    totals = [GuardrailTotal(kind=r["kind"], action=r["action"], count=int(r["n"]), last_at=r["last_at"])
+              for r in await repo.totals(days)]
+    daily = [GuardrailDay(**d) for d in day_series(await repo.daily(days), days, datetime.now(UTC).date())]
+    recent = [GuardrailEvent(**{**r, "user_id": str(r["user_id"]) if r["user_id"] else None})
+              for r in await repo.recent(limit=limit, kind=kind, before=before)]
+    return GuardrailReport(days=days, totals=totals, daily=daily, recent=recent)
 
 
 # =========================================================== feedback -> dataset curation

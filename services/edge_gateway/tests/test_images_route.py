@@ -41,7 +41,17 @@ class Redis:
 @pytest.fixture(autouse=True)
 def fakes(monkeypatch):
     Store.saved = []
+    Logged.events = []
     monkeypatch.setattr(routes_images, "image_store", lambda _req: Store())
+    monkeypatch.setattr(routes_images, "guardrail", Logged.record)
+
+
+class Logged:
+    events: list = []
+
+    @staticmethod
+    async def record(kind, action, **kw):
+        Logged.events.append((kind, action))
 
 
 def viewer(monkeypatch, user_id):
@@ -80,9 +90,10 @@ async def test_upload_needs_an_active_plan_and_has_a_daily_cap(monkeypatch):
 
     with pytest.raises(SubscriptionRequiredError):
         await routes_images.upload(request, SimpleNamespace(id="u2", plan_config=SimpleNamespace(topics=[])), "chat1")
-    redis.n = routes_images.UPLOADS_PER_DAY
+    redis.n = 60
     with pytest.raises(RateLimitedError):
         await routes_images.upload(request, user, "chat1")
+    assert Logged.events == [("upload_refused", "blocked")] * 2   # no plan + daily cap
 
 
 def test_only_sha256_ids_are_routed():

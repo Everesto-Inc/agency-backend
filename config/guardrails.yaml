@@ -1,0 +1,21 @@
+# Guardrails you can tune without a code change (hot-reloaded; also editable in Admin → Settings).
+# Every time a guardrail fires it is logged (MySQL guardrail_events, never the user's text) and counted
+# (Prometheus agency_guardrail_events_total) → Admin → Guardrails.
+
+injection:
+  # Text that tries to override the assistant's instructions ("ignore your previous instructions", "reveal
+  # your system prompt"…), in a question or written inside a picture.
+  #   off   — not checked
+  #   flag  — logged, the question still runs (assistants already treat web content as data)
+  #   block — logged and refused (in a picture: that picture's text is withheld)
+  mode: flag
+  # Score from the pattern check (0–1) at which a question counts as an injection attempt.
+  threshold: 0.6
+  # Ask a cheap model too, for questions the patterns find suspicious but not certain (score ≥ threshold/2).
+  # Costs one low-tier call for those questions only.
+  llm_check: false
+
+pictures:
+  per_message: 4
+  per_day: 60
+  max_upload_mb: 2.0

@@ -17,9 +17,11 @@ from pydantic import BaseModel
 from agency_platform.agents.schemas import SESSION_ID_PATTERN
 from agency_platform.auth.deps import CurrentUser, authenticate_token, get_account_directory, get_token_service
 from agency_platform.cache import get_redis, rkey
+from agency_platform.config.registry import guardrails
 from agency_platform.config.settings import get_settings
 from agency_platform.db import get_db
-from agency_platform.errors import AppError, NotFoundError, RateLimitedError, SubscriptionRequiredError
+from agency_platform.errors import AppError, BadRequestError, NotFoundError, RateLimitedError, SubscriptionRequiredError
+from agency_platform.security.guardrails import guardrail
 from agency_platform.service import openapi
 from agency_platform.tools.images import MAX_UPLOAD_BYTES, ImageStore
 from agency_platform.tools.objectstore import ObjectStore
@@ -27,7 +29,6 @@ from agency_platform.tools.objectstore import ObjectStore
 images_router = APIRouter(include_in_schema=False)
 uploads_router = APIRouter(tags=["Chat"], responses=openapi.AUTHED)
 
-UPLOADS_PER_DAY = 60
 UPLOAD_BODY_LIMIT = MAX_UPLOAD_BYTES + 64 * 1024
 
 
@@ -49,16 +50,21 @@ async def upload(request: Request, user: CurrentUser,
                  session_id: Annotated[str, Query(pattern=SESSION_ID_PATTERN)]) -> Uploaded:
     """Body = the picture itself (JPEG, PNG or WebP, ≤ 2 MB). Returns an id to pass in `image_ids` of POST /chat.
     The type is checked from the file's bytes. Private: only you can load it; deleted with the chat."""
-    if not user.plan_config.topics:
-        raise SubscriptionRequiredError("Your account is waiting for activation")
-    redis = get_redis()
-    day_key = rkey(f"uploads:{user.id}:{datetime.now(UTC).date().isoformat()}")
-    count = await redis.incr(day_key)
-    if count == 1:
-        await redis.expire(day_key, 86_400)
-    if count > UPLOADS_PER_DAY:
-        raise RateLimitedError(f"At most {UPLOADS_PER_DAY} pictures per day", retry_after_s=3600)
-    img = await image_store(request).save_upload(user.id, session_id, await request.body())
+    try:
+        if not user.plan_config.topics:
+            raise SubscriptionRequiredError("Your account is waiting for activation")
+        per_day = guardrails().pictures.per_day
+        redis = get_redis()
+        day_key = rkey(f"uploads:{user.id}:{datetime.now(UTC).date().isoformat()}")
+        count = await redis.incr(day_key)
+        if count == 1:
+            await redis.expire(day_key, 86_400)
+        if count > per_day:
+            raise RateLimitedError(f"At most {per_day} pictures per day", retry_after_s=3600)
+        img = await image_store(request).save_upload(user.id, session_id, await request.body())
+    except (BadRequestError, RateLimitedError, SubscriptionRequiredError) as exc:
+        await guardrail("upload_refused", "blocked", detail=f"{exc.code}: {exc.message}"[:200], user_id=user.id)
+        raise
     return Uploaded(id=img.id, path=img.path, content_type=img.content_type, size_bytes=img.size_bytes)
 
 
