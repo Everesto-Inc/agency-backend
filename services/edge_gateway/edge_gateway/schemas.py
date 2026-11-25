@@ -229,7 +229,7 @@ class TopicQuality(BaseModel):
     drift: DriftSummary | None = None
 
 
-class EvalCase(BaseModel):
+class EvalCaseCandidate(BaseModel):
     id: int
     topic: str
     source_request_id: str | None

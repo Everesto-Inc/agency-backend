@@ -25,7 +25,7 @@ from edge_gateway.schemas import (
     AccountSummary,
     AdminRun,
     CanaryStat,
-    EvalCase,
+    EvalCaseCandidate,
     EvalCaseStatus,
     ExperimentArm,
     LlmCall,
@@ -191,7 +191,7 @@ class EvalCaseUpdate(BaseModel):
 async def list_eval_cases(
     _: AdminUser, topic: str | None = None, status: str = "candidate", label: str | None = None,
     limit: int = Query(100, ge=1, le=500),
-) -> list[EvalCase]:
+) -> list[EvalCaseCandidate]:
     return await EvalRepository(get_db()).list_cases(topic=topic, status=status, label=label, limit=limit)
 
 
