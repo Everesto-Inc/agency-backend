@@ -40,17 +40,16 @@ class SkillRepository:
     # ------------------------------------------------------------------ admin
     async def update(self, name: str, *, enabled: bool | None, assistants: list[str] | None,
                      active_version_id: int | None, by: str) -> int:
-        sets, args = ["updated_by = %s"], [by[:255]]
-        if enabled is not None:
-            sets.append("enabled = %s")
-            args.append(enabled)
-        if assistants is not None:
-            sets.append("assistants = %s")
-            args.append(json.dumps(sorted(set(assistants))))
-        if active_version_id is not None:
-            sets.append("active_version_id = %s")
-            args.append(active_version_id)
-        return await self._db.execute(f"UPDATE skills SET {', '.join(sets)} WHERE name = %s", (*args, name))
+        """None = leave that field as it is (one static statement, every value a parameter)."""
+        return await self._db.execute(
+            """UPDATE skills
+               SET enabled = COALESCE(%s, enabled),
+                   assistants = COALESCE(CAST(%s AS JSON), assistants),
+                   active_version_id = COALESCE(%s, active_version_id),
+                   updated_by = %s
+               WHERE name = %s""",
+            (enabled, json.dumps(sorted(set(assistants))) if assistants is not None else None, active_version_id,
+             by[:255], name))
 
     async def delete(self, name: str) -> None:
         """The skill and every version (files go with their version)."""
