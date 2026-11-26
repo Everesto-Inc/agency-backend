@@ -129,7 +129,7 @@ async def chat(body: ChatBody, request: Request, user: CurrentUser):
         conv = await ConversationRepository(get_db()).get(user.id, body.session_id)
         history = await SessionStore(get_redis()).history(user.id, body.session_id)   # triage reads the chat
         choice = await choose_topic(prompt, llm, last_topic=(conv or {}).get("last_topic"), history=history)
-        if choice.direct and choice.topic is None:   # short answer in a new chat: any assistant the plan has
+        if (choice.direct or choice.out_of_scope) and choice.topic is None:   # new chat: any assistant the plan has
             choice = replace(choice, topic=next((t for t in enabled if user.plan_config.allows_topic(t)), None))
         if choice.topic is None:
             raise BadRequestError(
@@ -149,7 +149,8 @@ async def chat(body: ChatBody, request: Request, user: CurrentUser):
         "Content-Type": "application/json",
         **({DRAFT_HEADER: str(d.id)} if (d := current_draft()) else {}),   # testing a config draft
     }
-    payload = {"prompt": prompt, "session_id": body.session_id, "stream": body.stream, "direct": choice.direct}
+    payload = {"prompt": prompt, "session_id": body.session_id, "stream": body.stream, "direct": choice.direct,
+               "out_of_scope": choice.out_of_scope}
     routed = {"topic": choice.topic, "confidence": choice.confidence, "method": choice.method, "reason": choice.reason}
     http: httpx.AsyncClient = request.app.state.http
     timeout = httpx.Timeout(enabled[choice.topic].run_timeout_s + 30, connect=5)

@@ -30,7 +30,7 @@ from agency_platform.auth.deps import AuthenticatedUser
 from agency_platform.billing.usage import RateLimiter, UsageMeter
 from agency_platform.config.drafts import current_draft
 from agency_platform.config.prompts import PromptStore
-from agency_platform.config.registry import evals, guardrails, privacy, topics
+from agency_platform.config.registry import evals, guardrails, privacy, scope, topics
 from agency_platform.config.schemas import TopicConfig
 from agency_platform.config.settings import PlatformSettings
 from agency_platform.errors import AppError, BadRequestError, RateLimitedError, ServiceUnavailableError
@@ -59,6 +59,7 @@ class RunRequest:
     session_id: str
     request_id: str
     direct: bool = False       # triage: a short answer is enough → one short call, no agent workflow
+    out_of_scope: bool = False  # triage: outside config/scope.yaml → polite refusal, no agent workflow
 
 
 class _InjectionVerdict(BaseModel):
@@ -162,14 +163,20 @@ class TopicRunner:
             lines.append(line)
         return question + marker + "\n".join(lines)
 
-    async def _direct(self, ctx: RunContext, req: RunRequest) -> str:
-        p = self._prompts.get("edge", "direct", subject=ctx.user.id)
+    async def _direct(self, ctx: RunContext, req: RunRequest, kind: str = "direct") -> str:
+        p = self._prompts.get("edge", kind, subject=ctx.user.id)
         allowed = [t for name, t in topics().enabled().items() if req.user.plan_config.allows_topic(name)]
         assistants = "\n".join(f"- {t.display_name}: {t.description}" for t in allowed) or "- (none in this plan yet)"
+        if kind == "out_of_scope":
+            sc = scope()
+            domains = "\n".join(f"- {d.label}: {d.covers}" for d in sc.domains)
+            system = p.system.format(reply_style=sc.reply_style, domains=domains)
+        else:
+            system = p.system.format(assistants=assistants)
         recent = [{"role": m["role"], "content": m["content"][:500]} for m in ctx.history[-4:]
                   if m.get("role") in ("user", "assistant")]
         result = await ctx.llm.chat(
-            [{"role": "system", "content": p.system.format(assistants=assistants)}, *recent,
+            [{"role": "system", "content": system}, *recent,
              {"role": "user", "content": req.prompt[:1000]}],
             task="direct", prompt=p,
         )
@@ -281,6 +288,12 @@ class TopicRunner:
                 CACHE_EVENTS.labels("response", self.topic, "miss").inc()
 
             ctx = self._build_context(req, cfg, history, summary)
+            if req.out_of_scope:                 # input guardrail: outside what we talk about
+                await guardrail("scope", "blocked", topic=self.topic, detail="triage: outside config/scope.yaml")
+                text = await self._direct(ctx, req, kind="out_of_scope")
+                answer_parts.append(text)
+                await emit(AgentEvent.answer(text))
+                return
             if req.direct:                       # triage: one cheap call, still remembered like any answer
                 text = await self._direct(ctx, req)
                 answer_parts.append(text)

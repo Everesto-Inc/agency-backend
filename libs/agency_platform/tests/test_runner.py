@@ -344,3 +344,22 @@ async def test_crash_message_is_stored_for_admins(redis):
                   RunRequest(user=user(), prompt="x", session_id="s1", request_id="req-crash-001"))
     result = dict(runs.calls)["finish"]["result"]
     assert result.error_code == "AGENT_ERROR" and result.error_message == "RuntimeError: boom with secret internals"
+
+
+async def test_out_of_scope_is_refused_politely_and_logged(redis, monkeypatch):
+    from agency_platform.agents import runner as runner_mod
+    logged, kinds = [], []
+
+    async def guardrail(kind, action, **kw):
+        logged.append((kind, action))
+
+    async def direct(ctx, req, kind="direct"):
+        kinds.append(kind)
+        return "That's outside what I do — ask me about EVs, prices or stocks."
+    monkeypatch.setattr(runner_mod, "guardrail", guardrail)
+    runner = make_runner(ScriptedAgent(fail=True), redis, FakeRuns())   # the agent must not even run
+    monkeypatch.setattr(runner, "_direct", direct)
+    events = await collect(runner, RunRequest(user=user(), prompt="lasagne recipe?", session_id="s1",
+                                              request_id="req-scope-001", out_of_scope=True))
+    assert kinds == ["out_of_scope"] and ("scope", "blocked") in logged
+    assert any(e.type == "token" and "outside" in e.content for e in events) and not any(e.type == "error" for e in events)

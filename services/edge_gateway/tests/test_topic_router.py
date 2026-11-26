@@ -68,3 +68,11 @@ async def test_slow_triage_never_blocks(monkeypatch):
     monkeypatch.setattr(cfg.routing, "triage_timeout_s", 0.05)
     c = await choose_topic("What is the dividend of Microsoft stock?", llm=Slow())
     assert c.method == "keywords"
+
+
+async def test_off_topic_is_out_of_scope_and_triage_sees_the_scope():
+    llm = Triage("out_of_scope")
+    c = await choose_topic("give me a lasagne recipe", llm=llm, last_topic="ev_research")
+    assert (c.out_of_scope, c.direct, c.method) == (True, False, "triage-out-of-scope")
+    system = llm.seen[0]["content"]
+    assert "Electric vehicles & charging" in system and "recipes" in system      # built from config/scope.yaml

@@ -22,6 +22,7 @@ from agency_platform.config.registry import (
     plans_file,
     privacy_file,
     prompt_store,
+    scope_file,
     topics_file,
 )
 
@@ -46,6 +47,8 @@ _BASE = [
                                           "which tier each task gets, canaries.", models_file),
     Section("topics", "Assistants & routing", "Which assistants exist and are on, timeouts, keywords, small-talk "
                                               "phrases, whether follow-ups stay with the chat's assistant.", topics_file),
+    Section("scope", "Scope (what we talk about)", "The allowed domains, what is not allowed, and how an "
+                                                   "out-of-scope reply sounds — triage is built from it.", scope_file),
     Section("guardrails", "Guardrails", "Injection check (off / flag / block), picture limits.", guardrails_file),
     Section("memory", "Chat memory", "How many messages the assistants read word for word, when older ones are "
                                      "folded into the summary, the fast copy's size and lifetime.", memory_file),

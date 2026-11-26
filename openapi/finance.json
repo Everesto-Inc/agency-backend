@@ -102,6 +102,12 @@
             "title": "Direct",
             "type": "boolean"
           },
+          "out_of_scope": {
+            "default": false,
+            "description": "Triage: outside config/scope.yaml → a short polite refusal saying what the agency can do; logged as a guardrail event",
+            "title": "Out Of Scope",
+            "type": "boolean"
+          },
           "prompt": {
             "description": "The user's question",
             "examples": [

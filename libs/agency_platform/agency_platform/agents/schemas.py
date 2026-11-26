@@ -14,6 +14,8 @@ class RunBody(BaseModel):
     session_id: str = Field("default", pattern=SESSION_ID_PATTERN,
                             description="Conversation id: runs with the same id share memory (follow-ups)")
     stream: bool = Field(True, description="true: Server-Sent Events stream; false: one JSON document (RunResponse)")
+    out_of_scope: bool = Field(False, description="Triage: outside config/scope.yaml → a short polite refusal saying "
+                                                  "what the agency can do; logged as a guardrail event")
     direct: bool = Field(False, description="Triage decided a short answer is enough (greeting, 'who are you', a "
                                             "simple general question): one short call, no agent workflow")
 

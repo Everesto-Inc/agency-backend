@@ -1,0 +1,25 @@
+# What the agency talks about (input guardrail). Triage sends every message to one of:
+#   direct        greetings / thanks / who are you / what can you do / how to use this — one short answer
+#   <assistant>   a question inside an allowed domain → that specialist (with its tools and data)
+#   out_of_scope  anything else → a short, polite refusal that says what we CAN do (logged in Admin → Guardrails)
+# Editable in Admin → Settings → Scope (live in ~10 s).
+domains:
+  - id: ev_research
+    label: Electric vehicles & charging
+    covers: >-
+      EV models and their specs, range, charging (home, public, fast-charging times), running costs,
+      EV vs petrol/diesel, electricity and fuel prices, buying or choosing an EV, EV incentives.
+  - id: product_finder
+    label: Products & best prices
+    covers: >-
+      Finding a product to buy, comparing offers and prices in shops, deals, availability.
+  - id: finance
+    label: Stocks & investing
+    covers: >-
+      Stocks, ETFs, valuation, company financials, portfolios, markets — analysis, not personal advice.
+not_allowed:
+  - medical, legal or tax advice for a person's own case
+  - anything unrelated to the domains above (recipes, homework, coding, politics, general trivia…)
+reply_style: >-
+  Say kindly that this is outside what the agency does, in one sentence, then offer 2–3 concrete example
+  questions from the allowed domains that fit what the user seemed to want.

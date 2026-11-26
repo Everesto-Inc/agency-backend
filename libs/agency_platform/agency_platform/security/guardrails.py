@@ -26,6 +26,7 @@ Kind = Literal[
     "grounding",        # a number the model extracted is not on the source page → dropped
     "unsafe_url",       # internal / non-public address refused
     "upload_refused",   # picture not accepted (type, size, count, daily cap)
+    "scope",            # outside what the agency talks about (config/scope.yaml) → polite refusal
 ]
 Action = Literal["blocked", "flagged", "masked", "dropped"]
 

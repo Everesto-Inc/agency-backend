@@ -120,6 +120,19 @@ class GuardrailsFile(BaseModel):
     pictures: PictureLimits = PictureLimits()
 
 
+class ScopeDomain(BaseModel):
+    id: str = Field(..., description="the assistant (topic) that handles it")
+    label: str
+    covers: str
+
+
+class ScopeFile(BaseModel):
+    """What the agency talks about (config/scope.yaml) — the triage prompt is built from it."""
+    domains: list[ScopeDomain] = Field(..., min_length=1)
+    not_allowed: list[str] = Field(default_factory=list)
+    reply_style: str = "Say kindly that this is outside what the agency does and suggest 2-3 example questions."
+
+
 class MemoryFile(BaseModel):
     recent: int = Field(4, ge=0, le=20)
     fold_at_least: int = Field(6, ge=2, le=50)

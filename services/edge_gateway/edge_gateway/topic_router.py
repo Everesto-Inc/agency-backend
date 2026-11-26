@@ -14,11 +14,12 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel
 
-from agency_platform.config.registry import prompt_store, topics
+from agency_platform.config.registry import prompt_store, scope, topics
 from agency_platform.errors import AppError
 from agency_platform.llm.client import ModelGatewayClient
 
 DIRECT = "direct"
+OUT_OF_SCOPE = "out_of_scope"
 
 
 @dataclass(frozen=True)
@@ -29,6 +30,7 @@ class TopicChoice:
     scores: dict[str, int]
     direct: bool = False   # one short answer, no assistant workflow (topic may be None → the caller picks one)
     reason: str = ""
+    out_of_scope: bool = False   # outside config/scope.yaml → polite refusal (topic may be None → the caller picks one)
 
 
 class _Triage(BaseModel):
@@ -59,10 +61,12 @@ def conversation_lines(history: list[dict[str, str]] | None) -> str:
 async def triage(prompt: str, llm: ModelGatewayClient, history: list[dict[str, str]] | None,
                  last_topic: str | None) -> _Triage:
     cfg = topics()
-    catalogue = "\n".join(f"- {name}: {t.description}" for name, t in cfg.enabled().items())
+    enabled = cfg.enabled()
+    sc = scope()
+    domains = "\n".join(f"- {d.id} ({d.label}): {d.covers}" for d in sc.domains if d.id in enabled)
     p = prompt_store().get("edge", "triage")
     return await asyncio.wait_for(llm.structured(
-        [{"role": "system", "content": p.system.format(topics=catalogue)},
+        [{"role": "system", "content": p.system.format(domains=domains, not_allowed="; ".join(sc.not_allowed) or "-")},
          {"role": "user", "content": f"Conversation so far (last assistant: {last_topic or 'none'}):\n"
                                      f"{conversation_lines(history)}\n\nNew message:\n{prompt[:2000]}"}],
         _Triage, task="topic_classification", prompt=p, max_escalations=0,
@@ -94,6 +98,9 @@ async def choose_topic(prompt: str, llm: ModelGatewayClient | None, last_topic: 
             t = await triage(prompt, llm, history, follow)
             if t.route == DIRECT:
                 return TopicChoice(follow, round(t.confidence, 2), "triage-direct", {}, direct=True, reason=t.reason)
+            if t.route == OUT_OF_SCOPE:
+                return TopicChoice(follow, round(t.confidence, 2), "triage-out-of-scope", {}, out_of_scope=True,
+                                   reason=t.reason)
             if t.route in enabled:
                 return TopicChoice(t.route, round(t.confidence, 2), "triage", {}, reason=t.reason)
         except (AppError, TimeoutError):
