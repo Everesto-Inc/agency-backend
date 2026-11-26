@@ -25,6 +25,7 @@ from agency_platform.errors import AppError
 from agency_platform.tools.fx import RATE_SOURCE
 from agency_platform.tools.images import markdown as images_markdown
 from ev_research import calc, repository
+from ev_research import tools as ev_tools
 from ev_research.params import params
 from ev_research.sources import FactSources
 
@@ -53,15 +54,20 @@ class EVState(TypedDict, total=False):
     needs: list[str]
     error: str | None
     out_of_scope: bool
+    question_kind: str
+    tool_trace: list[dict[str, Any]]
 
 
 class ParsedIntent(BaseModel):
-    comparison_mode: Literal["single", "ev_vs_ev", "ev_vs_fuel"]
+    # car: one named EV · compare: two EVs / EV vs fuel · general: any other EV question (lists, country costs
+    # without a car, charging times, buying advice…) → the tool agent · not_ev: outside EVs
+    question_kind: Literal["car", "compare", "general", "not_ev"] = "car"
+    comparison_mode: Literal["single", "ev_vs_ev", "ev_vs_fuel"] = "single"
     country_code: str | None = None          # null unless the user said it (this message or the conversation)
     annual_mileage_km: int | None = None
-    vehicle_a_make: str
-    vehicle_a_model: str
-    vehicle_a_year: int
+    vehicle_a_make: str | None = None
+    vehicle_a_model: str | None = None
+    vehicle_a_year: int | None = None
     vehicle_a_year_stated: bool = True
     vehicle_a_trim: str = ""
     vehicle_b_make: str | None = None
@@ -96,8 +102,13 @@ async def parse_intent(state: EVState, config: RunnableConfig) -> dict[str, Any]
         )
     except AppError as exc:
         return {"error": f"Could not understand the request: {exc.message}"}
-    if intent.vehicle_a_make.upper() == "UNKNOWN":
-        return {"error": "This assistant answers electric-vehicle questions. Please name an EV model.", "out_of_scope": True}
+    if intent.question_kind == "not_ev" or (intent.vehicle_a_make or "").upper() == "UNKNOWN":
+        return {"error": "This assistant answers electric-vehicle questions.", "out_of_scope": True}
+    if intent.question_kind == "general" or not (intent.vehicle_a_make and intent.vehicle_a_model):
+        # no single named car to look up: the tool agent picks what it needs (catalogue, prices, calculators)
+        return {"question_kind": "general", "country_code": country_of(intent.country_code),
+                "annual_mileage_km": intent.annual_mileage_km}
+    intent.vehicle_a_year = intent.vehicle_a_year or 2025
 
     vehicle_b = None
     if intent.comparison_mode == "ev_vs_ev" and intent.vehicle_b_make and intent.vehicle_b_model:
@@ -276,6 +287,34 @@ async def log_run(state: EVState, config: RunnableConfig) -> dict[str, Any]:
     return {}
 
 
+async def tool_agent(state: EVState, config: RunnableConfig) -> dict[str, Any]:
+    """Any EV question the fixed path doesn't cover: the model calls our tools (catalogue, prices, calculators,
+    verified specs) and writes the answer from their results only."""
+    ctx, sources = _deps(config)
+    p = ctx.prompt("tool_agent")
+    known = []
+    if state.get("country_code"):
+        known.append(f"country: {state['country_code']}")
+    if state.get("annual_mileage_km"):
+        known.append(f"km per year: {state['annual_mileage_km']}")
+    system = p.system + (f"\n\nKnown from the conversation: {', '.join(known)}" if known else "") + \
+        (f"\n\nSummary of the earlier conversation (context only):\n{ctx.summary}" if ctx.summary else "")
+    history = [{"role": m["role"], "content": m["content"]} for m in ctx.history[-4:] if m["role"] in ("user", "assistant")]
+    try:
+        out = await ev_tools.run_tools(state["query"], ctx, sources, system, history, p)
+    except AppError as exc:
+        return {"error": f"Could not answer: {exc.message}"}
+    if not out["answer"]:
+        return {"error": "Could not put an answer together from our data."}
+    return {"analysis": out["answer"], "tool_trace": out["trace"]}
+
+
+def _after_intent(state: EVState) -> str:
+    if state.get("error"):
+        return "log_run"
+    return "tool_agent" if state.get("question_kind") == "general" else "retrieve"
+
+
 def _ok_or_log(next_node: str):
     def route(state: EVState) -> str:
         return "log_run" if state.get("error") else next_node
@@ -285,13 +324,15 @@ def _ok_or_log(next_node: str):
 def build_graph():
     g = StateGraph(EVState)
     g.add_node("parse_intent", parse_intent)
+    g.add_node("tool_agent", tool_agent)
     g.add_node("retrieve", retrieve)
     g.add_node("calculate", calculate)
     g.add_node("synthesize", synthesize)
     g.add_node("pictures", pictures)
     g.add_node("log_run", log_run)
     g.set_entry_point("parse_intent")
-    g.add_conditional_edges("parse_intent", _ok_or_log("retrieve"), ["retrieve", "log_run"])
+    g.add_conditional_edges("parse_intent", _after_intent, ["retrieve", "tool_agent", "log_run"])
+    g.add_edge("tool_agent", "log_run")
     g.add_conditional_edges("retrieve", _ok_or_log("calculate"), ["calculate", "log_run"])
     g.add_edge("calculate", "synthesize")
     g.add_edge("synthesize", "pictures")

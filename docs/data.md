@@ -179,3 +179,21 @@ flowchart LR
   crawled ones 30.
 - Not covered yet: car purchase prices, incentives, public charging prices, real consumption of petrol/diesel
   comparison cars (a disclosed 7 L/100 km assumption until then).
+
+
+### EV questions without one specific car: the tool agent
+
+The fixed EV path handles one car, two cars and EV vs petrol/diesel. **Every other EV question** (lists, "which EV
+charges fastest", charging costs in a country, charging times, buying advice) goes to a **tool-using agent**: the
+model chooses tools, the tools return the facts, code does the arithmetic.
+
+| Tool | Answers with |
+|---|---|
+| `search_catalog(filters, sort_by)` | Open EV Data catalogue — find / rank EVs |
+| `car_specs(make, model)` | verified cache → catalogue → web (numbers checked on the page) |
+| `energy_prices(country)` | official electricity + fuel prices (Eurostat, Oil Bulletin), web only if missing |
+| `running_costs(country, consumption, km)` | calculated yearly / monthly / per-100 km cost, optionally vs petrol/diesel |
+| `charging_time(make, model, from %, to %, charger kW)` | minutes along the car's charging curve |
+
+At most 5 model ↔ tool rounds, then it must answer; every tool call is in the run's trace. The prompt
+(`prompts/ev_research.yaml → tool_agent`) forbids numbers that didn't come from a tool.

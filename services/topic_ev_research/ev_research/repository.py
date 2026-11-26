@@ -88,8 +88,10 @@ async def catalog_rows() -> list[dict[str, Any]]:
     if time.monotonic() - _CATALOG["at"] > _CATALOG_TTL_S or not _CATALOG["rows"]:
         rows = await get_db().fetch(
             """SELECT make, model, variant, release_year, usable_battery_kwh, consumption_kwh_100km, est_range_km,
-                      dc_max_kw, ac_max_kw FROM ev_catalog""")
+                      dc_max_kw, ac_max_kw, charging_curve FROM ev_catalog""")
         for r in rows:
+            curve = r.get("charging_curve")
+            r["charging_curve"] = json.loads(curve) if isinstance(curve, str | bytes) else (curve or [])
             for k in ("usable_battery_kwh", "consumption_kwh_100km", "dc_max_kw", "ac_max_kw"):
                 r[k] = float(r[k]) if r[k] is not None else None
         _CATALOG.update(at=time.monotonic(), rows=rows)

@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 _STATUS = {
     "parse_intent": "Understood the question (vehicles, country, comparison)",
+    "tool_agent": "Looked it up in our data (catalogue, official prices, calculators)",
     "retrieve": "Retrieved specs (and local energy prices when the country is known) — cache or verified crawl",
     "calculate": "Computed running costs deterministically",
     "synthesize": "Wrote the grounded answer",

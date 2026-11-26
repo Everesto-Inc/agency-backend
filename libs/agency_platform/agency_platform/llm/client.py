@@ -89,13 +89,16 @@ class ModelGatewayClient:
         max_tokens: int | None = None,
         response_format: dict[str, Any] | None = None,
         timeout_s: float = 120.0,
+        tools: list[dict[str, Any]] | None = None,
+        tool_choice: str | dict[str, Any] | None = None,
     ) -> ChatResult:
         body: dict[str, Any] = {"model": resolve_alias(task, tier), "messages": messages}
         if temperature is None and prompt is not None:
             temperature = prompt.spec.temperature
         if max_tokens is None and prompt is not None:
             max_tokens = prompt.spec.max_tokens
-        for key, value in (("temperature", temperature), ("max_tokens", max_tokens), ("response_format", response_format)):
+        for key, value in (("temperature", temperature), ("max_tokens", max_tokens), ("response_format", response_format),
+                           ("tools", tools), ("tool_choice", tool_choice)):
             if value is not None:
                 body[key] = value
 

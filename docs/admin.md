@@ -71,6 +71,7 @@ flowchart TB
 
 | Kind (in the log) | Protects | Fires when | Action | Tune it in |
 |---|---|---|---|---|
+| `scope` | the product's focus | the message is outside `config/scope.yaml` (recipes, homework, politics…) → a short polite refusal with example questions; the assistant never runs | blocked | Settings → Scope |
 | `plan` | business | assistant not in the plan / account not activated | blocked | Settings → Plans & limits |
 | `quota` | money | daily tokens / cost / assistant limit reached | blocked | Settings → Plans & limits |
 | `rate_limit` | service | too many requests per minute | blocked | Settings → Plans & limits |

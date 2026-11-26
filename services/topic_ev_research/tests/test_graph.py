@@ -209,3 +209,18 @@ async def test_no_picture_unless_asked_and_honest_when_none(no_db):
     none = await run(FakeLLM({"intent_parsing": intent("single") | {"wants_images": True}, "synthesis": "specs"}),
                      FakeSources(), images=FakeImages(usable=False))
     assert "couldn't find a usable picture" in none["analysis"]
+
+
+
+async def test_general_ev_questions_go_to_the_tool_agent(no_db, monkeypatch):
+    from ev_research import graph as g
+    seen = {}
+
+    async def run_tools(question, ctx, sources, system, history, prompt):
+        seen["q"], seen["system"] = question, system
+        return {"answer": "The Kia EV6 charges fastest (Open EV Data).", "trace": [{"tool": "search_catalog"}]}
+    monkeypatch.setattr(g.ev_tools, "run_tools", run_tools)
+    general = {"question_kind": "general", "country_code": "DE", "vehicle_a_make": None, "vehicle_a_model": None}
+    state = await run(FakeLLM({"intent_parsing": general}), FakeSources(), query="which EV charges fastest in Germany?")
+    assert state["analysis"].startswith("The Kia EV6") and state["tool_trace"]
+    assert seen["q"] == "which EV charges fastest in Germany?" and "country: DE" in seen["system"]
