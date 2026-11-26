@@ -1,6 +1,8 @@
 # Topic 2 (cheapest product finder) parameters. Hot-reloaded.
 
 search:
+  # Country when the shopper names none (in the question or the conversation) — the answer says it was assumed.
+  default_country: FR
   max_queries: 4                # planner-proposed queries actually executed
   results_per_query: 6
   max_pages_to_check: 12        # pages fetched + extracted per run (cost bound)

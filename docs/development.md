@@ -29,6 +29,7 @@ The edge gateway has `routes_*.py` (thin HTTP layer), `schemas.py` (response mod
 | Errors are raised as `AppError` subclasses (`agency_platform.errors`) | uniform `{"error": {code, message, …}}` envelope |
 | Tunables in `config/*.yaml`, prompts in `prompts/*.yaml` | changed without a code release |
 | After changing an endpoint: `bash ci/export_openapi.sh` and commit `openapi/` | Backstage API pages = code (CI checks) |
+| Frameworks must not use the shared Redis for their own state (CrewAI's lock store reads `REDIS_URL`: overridden in `product_finder/crews.py`) | our Redis user is ACL-restricted to its key prefix — admin commands like `CLIENT SETNAME` fail |
 
 ## Add an endpoint (example: edge gateway)
 

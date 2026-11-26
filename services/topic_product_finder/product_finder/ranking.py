@@ -30,6 +30,8 @@ def render_answer(plan: SearchPlan, ranked: list[Offer], checked: int, caveats: 
     lines = [
         f"### Cheapest verified offers for {plan.product} ({plan.country_code})",
         "",
+        *([f"_Searched in {plan.country_code} (no country given — tell me if you shop elsewhere)._", ""]
+          if not plan.country_stated else []),
         f"| # | Retailer | Price (as listed) | Shipping | Total ≈ {plan.currency} | Match |",
         "|---|---|---|---|---|---|",
     ]

@@ -9,14 +9,35 @@ with the run's call token, so its calls are tiered, plan-capped and tracked
 exactly like every other framework's.
 """
 import json
+import os
+import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
+from hashlib import md5
 from typing import Protocol
 
+import portalocker
 from crewai import LLM, Agent, Crew, Process, Task
+from crewai_core.lock_store import set_lock_backend
 
 from agency_platform.agents.base import RunContext
 from agency_platform.security.content import UNTRUSTED_DATA_RULES, fence_untrusted
 from product_finder.models import MatchReport, Offer, SearchPlan
 from product_finder.params import params
+
+
+@contextmanager
+def _file_lock(name: str, *, timeout: float = 120) -> Iterator[None]:
+    """CrewAI's internal locks (its local SQLite task store) on a file in /tmp — never on Redis.
+
+    CrewAI otherwise uses REDIS_URL when it is set, and needs CLIENT SETNAME there: our Redis user is restricted
+    by ACL (own key prefix, no admin commands), so every crew crashed before its first model call."""
+    path = os.path.join(tempfile.gettempdir(), f"crewai-{md5(name.encode(), usedforsecurity=False).hexdigest()}.lock")
+    with portalocker.Lock(path, timeout=timeout):
+        yield
+
+
+set_lock_backend(_file_lock)
 
 
 class Crews(Protocol):

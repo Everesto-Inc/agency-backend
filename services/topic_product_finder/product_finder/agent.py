@@ -12,7 +12,7 @@ from product_finder import repository
 from product_finder.crews import CrewAICrews, Crews
 from product_finder.fx import FXRates
 from product_finder.models import Offer, SearchPlan
-from product_finder.params import settings
+from product_finder.params import params, settings
 from product_finder.ranking import rank, render_answer
 
 
@@ -36,7 +36,8 @@ class ProductFinderAgent(TopicAgent):
     async def run(self, prompt: str, ctx: RunContext) -> AsyncIterator[AgentEvent]:
         assert self._search is not None and self._fx is not None
         # the chat's last messages go along: "and in France?" refers to the product asked before
-        plan = await self._crews.plan(with_history(prompt, ctx.history, summary=ctx.summary), default_country="US", ctx=ctx)
+        plan = await self._crews.plan(with_history(prompt, ctx.history, summary=ctx.summary),
+                                      default_country=params().search.default_country, ctx=ctx)
         yield AgentEvent.status(f"Looking for: {plan.product} ({plan.country_code}, {plan.currency})",
                                 step="plan", must_match=plan.must_match)
 

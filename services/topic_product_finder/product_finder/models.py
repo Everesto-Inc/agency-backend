@@ -9,8 +9,9 @@ Verdict = Literal["exact", "variant", "accessory", "mismatch"]
 class SearchPlan(BaseModel):
     product: str = Field(..., description="Canonical product name incl. exact model")
     must_match: list[str] = Field(default_factory=list, description="Attributes an offer must have")
-    country_code: str = Field("US", min_length=2, max_length=2)
-    currency: str = Field("USD", min_length=3, max_length=3)
+    country_code: str = Field("FR", min_length=2, max_length=2)
+    country_stated: bool = Field(True, description="false = the shopper named no country; the default was used")
+    currency: str = Field("EUR", min_length=3, max_length=3)
     acceptable_conditions: list[Condition] = Field(default_factory=lambda: ["new"])
     queries: list[str] = Field(..., min_length=1, max_length=8)
 

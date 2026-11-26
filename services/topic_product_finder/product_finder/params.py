@@ -12,6 +12,8 @@ class FinderSettings(PlatformSettings):
 
 
 class SearchParams(BaseModel):
+    # country when the shopper names none (request or conversation) — said in the answer, never silent
+    default_country: str = Field("FR", min_length=2, max_length=2)
     max_queries: int = Field(4, ge=1, le=8)
     results_per_query: int = Field(6, ge=1, le=20)
     max_pages_to_check: int = Field(12, ge=1, le=40)

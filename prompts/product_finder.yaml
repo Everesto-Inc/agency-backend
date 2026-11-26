@@ -1,4 +1,4 @@
-version: "1.0"
+version: "1.1"
 prompts:
   planner_role:
     system: |
@@ -10,8 +10,9 @@ prompts:
     system: |
       Shopper request: "{request}"
       Produce the canonical product name, the attributes an offer MUST match (e.g. storage,
-      size, colour if specified, model generation), the country (ISO alpha-2, infer from
-      the request, default {default_country}), the shopper's currency (ISO 4217), the
+      size, colour if specified, model generation), the country (ISO alpha-2, from the
+      request or the earlier conversation; if none is named use {default_country} and set
+      country_stated to false), the shopper's currency (ISO 4217), the
       acceptable conditions (new / refurbished / used; default new only), and up to
       {max_queries} distinct search queries likely to surface retailer product pages with
       prices (include the exact model name; vary retailer-oriented wording).
