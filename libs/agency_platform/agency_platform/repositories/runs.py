@@ -20,6 +20,7 @@ class RunResult:
     answer: str | None
     cache_hit: bool
     eval_sampled: bool
+    error_message: str | None = None
 
 
 class RunRepository:
@@ -38,11 +39,12 @@ class RunRepository:
     async def finish(self, request_id: str, r: RunResult) -> None:
         await self._db.execute(
             """UPDATE agent_runs
-               SET status = %s, error_code = %s, latency_ms = %s, prompt_tokens = %s, completion_tokens = %s,
+               SET status = %s, error_code = %s, error_message = %s, latency_ms = %s, prompt_tokens = %s, completion_tokens = %s,
                    cost_usd = %s, llm_calls = %s, answer_chars = %s, answer = %s, cache_hit = %s,
                    eval_sampled = %s, finished_at = UTC_TIMESTAMP(6)
                WHERE request_id = %s""",
-            (r.status, r.error_code, r.latency_ms, r.prompt_tokens, r.completion_tokens, r.cost_usd, r.llm_calls,
+            (r.status, r.error_code, (r.error_message or "")[:500] or None,
+             r.latency_ms, r.prompt_tokens, r.completion_tokens, r.cost_usd, r.llm_calls,
              r.answer_chars, r.answer, r.cache_hit, r.eval_sampled, request_id),
         )
 
@@ -130,7 +132,8 @@ class RunRepository:
 
     async def recent(self, *, topic: str | None, status: str | None, limit: int) -> list[dict[str, Any]]:
         return await self._db.fetch(
-            """SELECT r.request_id, r.user_id, u.email AS user_email, r.topic, r.status, r.error_code, r.cache_hit,
+            """SELECT r.request_id, r.user_id, u.email AS user_email, r.topic, r.status, r.error_code, r.error_message,
+                      r.cache_hit,
                       r.latency_ms, r.cost_usd, r.llm_calls, r.feedback_score, r.prompt_fingerprint, r.created_at,
                       LEFT(r.prompt, 160) AS prompt
                FROM agent_runs r LEFT JOIN users u ON u.id = r.user_id

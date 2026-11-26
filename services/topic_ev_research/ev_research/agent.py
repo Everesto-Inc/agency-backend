@@ -77,7 +77,8 @@ class EVResearchAgent(TopicAgent):
                 out = out or {}
                 final.update(out)
                 if out.get("error"):
-                    yield AgentEvent.error(out["error"], code="EV_PIPELINE_ERROR", node=node)
+                    code = "OUT_OF_SCOPE" if out.get("out_of_scope") else "EV_PIPELINE_ERROR"
+                    yield AgentEvent.error(out["error"], code=code, node=node)
                 elif node in _STATUS and (node != "pictures" or out):  # no picture asked → no status line
                     yield AgentEvent.status(_STATUS[node], node=node)
 

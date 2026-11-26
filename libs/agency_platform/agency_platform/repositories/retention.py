@@ -54,6 +54,11 @@ class RetentionRepository:
                 "DELETE FROM guardrail_events WHERE created_at < UTC_TIMESTAMP(6) - INTERVAL %s DAY LIMIT %s",
                 cfg.guardrail_events_days,
             ),
+            # runs cut off by a pod restart stay "running" forever otherwise
+            "interrupted_runs": await self._db.execute(
+                """UPDATE agent_runs SET status = 'interrupted', error_code = 'INTERRUPTED',
+                          error_message = 'stopped by a restart (deploy) before it finished'
+                   WHERE status = 'running' AND created_at < UTC_TIMESTAMP(6) - INTERVAL 2 HOUR"""),
             "refresh_tokens": await self._chunked(
                 """DELETE FROM refresh_tokens
                    WHERE (revoked_at IS NOT NULL OR expires_at < UTC_TIMESTAMP(6))

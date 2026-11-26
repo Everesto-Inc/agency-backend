@@ -214,6 +214,18 @@
             ],
             "title": "Error Code"
           },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why it failed, in words",
+            "title": "Error Message"
+          },
           "feedback_score": {
             "anyOf": [
               {

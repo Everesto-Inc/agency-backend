@@ -275,6 +275,7 @@ class AdminRun(BaseModel):
     topic: str
     status: str
     error_code: str | None
+    error_message: str | None = Field(None, description="Why it failed, in words")
     cache_hit: bool
     latency_ms: int | None
     cost_usd: float

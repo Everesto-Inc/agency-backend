@@ -115,7 +115,7 @@ def test_country_codes_become_names_for_search():
 async def test_off_topic_rejected_early(no_db):
     bad = intent() | {"vehicle_a_make": "UNKNOWN"}
     state = await run(FakeLLM({"intent_parsing": bad}), FakeSources(), query="bake me a cake")
-    assert "electric-vehicle" in state["error"]
+    assert "electric-vehicle" in state["error"] and state["out_of_scope"]          # → the runner answers directly instead
 
 
 def test_calc_is_exact():

@@ -47,6 +47,7 @@ from agency_platform.tools.vision import MARKER
 logger = logging.getLogger(__name__)
 
 HEARTBEAT = AgentEvent(type="status", content="", data={"heartbeat": True})
+OUT_OF_SCOPE = "OUT_OF_SCOPE"   # an agent's "not my kind of question" → the runner answers directly instead
 _END = object()
 _MAX_STORED_ANSWER = 20_000
 
@@ -69,6 +70,7 @@ class _InjectionVerdict(BaseModel):
 class _Outcome:
     status: str = "success"
     error_code: str | None = None
+    error_message: str | None = None
     cache_hit: bool = False
 
 
@@ -303,8 +305,16 @@ class TopicRunner:
                     elif ev.type == "status" and ev.content:
                         steps.append(ev.content)
                     elif ev.type == "error":
+                        if ev.data.get("code") == OUT_OF_SCOPE and not answer_parts:
+                            # not this assistant's kind of question ("who are you?" with the EV chip selected):
+                            # a short direct answer instead of a dead end
+                            text = await self._direct(ctx, req)
+                            answer_parts.append(text)
+                            await emit(AgentEvent.answer(text))
+                            continue
                         saw_error = True
                         outcome.error_code = ev.data.get("code", "AGENT_ERROR")
+                        outcome.error_message = ev.content
                     await emit(ev)
             if saw_error and not answer_parts:
                 outcome.status = "error"
@@ -314,16 +324,18 @@ class TopicRunner:
                 )
         except TimeoutError:
             outcome.status, outcome.error_code = "timeout", "TIMEOUT"
+            outcome.error_message = f"Run exceeded {cfg.run_timeout_s}s"
             await emit(AgentEvent.error(f"Run exceeded {cfg.run_timeout_s}s and was stopped", code="TIMEOUT"))
         except asyncio.CancelledError:
             outcome.status, outcome.error_code = "cancelled", "CLIENT_DISCONNECTED"
             raise
         except AppError as exc:
-            outcome.status, outcome.error_code = "error", exc.code
+            outcome.status, outcome.error_code, outcome.error_message = "error", exc.code, exc.message
             await emit(AgentEvent.error(exc.message, code=exc.code))
-        except Exception:
+        except Exception as exc:
             logger.exception("agent run failed", extra={"topic": self.topic})
             outcome.status, outcome.error_code = "error", "AGENT_ERROR"
+            outcome.error_message = f"{type(exc).__name__}: {exc}"[:500]   # admins only (Admin → Runs)
             await emit(AgentEvent.error("The agent failed unexpectedly. Please try again."))
         finally:
             latency_s = time.perf_counter() - started
@@ -449,6 +461,7 @@ class TopicRunner:
             await self._runs.finish(req.request_id, RunResult(
                 status=outcome.status,
                 error_code=outcome.error_code,
+                error_message=outcome.error_message,
                 latency_ms=int(latency_s * 1000),
                 prompt_tokens=usage.prompt_tokens,
                 completion_tokens=usage.completion_tokens,

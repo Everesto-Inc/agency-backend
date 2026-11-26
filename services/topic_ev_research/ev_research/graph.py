@@ -52,6 +52,7 @@ class EVState(TypedDict, total=False):
     assumptions: list[str]
     needs: list[str]
     error: str | None
+    out_of_scope: bool
 
 
 class ParsedIntent(BaseModel):
@@ -96,7 +97,7 @@ async def parse_intent(state: EVState, config: RunnableConfig) -> dict[str, Any]
     except AppError as exc:
         return {"error": f"Could not understand the request: {exc.message}"}
     if intent.vehicle_a_make.upper() == "UNKNOWN":
-        return {"error": "This assistant answers electric-vehicle questions. Please name an EV model."}
+        return {"error": "This assistant answers electric-vehicle questions. Please name an EV model.", "out_of_scope": True}
 
     vehicle_b = None
     if intent.comparison_mode == "ev_vs_ev" and intent.vehicle_b_make and intent.vehicle_b_model:

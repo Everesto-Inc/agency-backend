@@ -317,3 +317,30 @@ async def test_direct_answer_is_one_short_call_without_the_agent(monkeypatch):
     ctx = SimpleNamespace(user=user, llm=LLM(), history=[{"role": "user", "content": "earlier"}])
     req = SimpleNamespace(prompt="who are you?", user=user)
     assert await r._direct(ctx, req) == "Hi! I'm the agency team." and calls == ["direct"]
+
+
+
+class OutOfScopeAgent(ScriptedAgent):
+    async def run(self, prompt, ctx):
+        yield AgentEvent.error("This assistant answers electric-vehicle questions.", code="OUT_OF_SCOPE")
+
+
+async def test_out_of_scope_becomes_a_direct_answer_not_a_dead_end(redis, monkeypatch):
+    runs = FakeRuns()
+    runner = make_runner(OutOfScopeAgent(), redis, runs)
+
+    async def direct(ctx, req):
+        return "Hi! I'm agency."
+    monkeypatch.setattr(runner, "_direct", direct)
+    events = await collect(runner, RunRequest(user=user(), prompt="who are you?", session_id="s1", request_id="req-oos-0001"))
+    assert [e.type for e in events if e.type != "status"][:1] == ["token"] and not any(e.type == "error" for e in events)
+    result = dict(runs.calls)["finish"]["result"]
+    assert result.status == "success" and result.answer and "agency" in result.answer
+
+
+async def test_crash_message_is_stored_for_admins(redis):
+    runs = FakeRuns()
+    await collect(make_runner(ScriptedAgent(fail=True), redis, runs),
+                  RunRequest(user=user(), prompt="x", session_id="s1", request_id="req-crash-001"))
+    result = dict(runs.calls)["finish"]["result"]
+    assert result.error_code == "AGENT_ERROR" and result.error_message == "RuntimeError: boom with secret internals"
