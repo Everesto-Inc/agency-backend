@@ -227,7 +227,7 @@ async def synthesize(state: EVState, config: RunnableConfig) -> dict[str, Any]:
     try:
         result = await ctx.llm.chat(
             [
-                {"role": "system", "content": p.system},
+                {"role": "system", "content": p.system + ctx.skill_instructions()},
                 {"role": "user", "content": f"User asked: {state['query']}\n\nGrounded data (the only facts you may use):\n"
                                             f"{json.dumps(grounded, indent=2, default=str)}"},
             ],
@@ -298,7 +298,8 @@ async def tool_agent(state: EVState, config: RunnableConfig) -> dict[str, Any]:
     if state.get("annual_mileage_km"):
         known.append(f"km per year: {state['annual_mileage_km']}")
     system = p.system + (f"\n\nKnown from the conversation: {', '.join(known)}" if known else "") + \
-        (f"\n\nSummary of the earlier conversation (context only):\n{ctx.summary}" if ctx.summary else "")
+        (f"\n\nSummary of the earlier conversation (context only):\n{ctx.summary}" if ctx.summary else "") + \
+        ctx.skill_instructions()
     history = [{"role": m["role"], "content": m["content"]} for m in ctx.history[-4:] if m["role"] in ("user", "assistant")]
     try:
         out = await ev_tools.run_tools(state["query"], ctx, sources, system, history, p)

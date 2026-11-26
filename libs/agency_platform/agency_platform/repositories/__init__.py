@@ -10,6 +10,7 @@ from agency_platform.repositories.llm_calls import CALL_COLUMNS, LlmCallReposito
 from agency_platform.repositories.retention import RetentionRepository
 from agency_platform.repositories.runs import RunRepository, RunResult
 from agency_platform.repositories.settings import SettingsRepository
+from agency_platform.repositories.skills import SkillRepository
 from agency_platform.repositories.usage import UsageRepository
 
 __all__ = [
@@ -25,6 +26,7 @@ __all__ = [
     "RunRepository",
     "RunResult",
     "SettingsRepository",
+    "SkillRepository",
     "UsageRepository",
     "title_from_prompt",
 ]

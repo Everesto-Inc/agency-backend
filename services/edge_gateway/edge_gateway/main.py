@@ -15,6 +15,7 @@ from edge_gateway.routes_dashboard import admin_dashboard_router, dashboard_rout
 from edge_gateway.routes_experiments import experiments_router
 from edge_gateway.routes_images import UPLOAD_BODY_LIMIT, images_router, uploads_router
 from edge_gateway.routes_settings import settings_router
+from edge_gateway.routes_skills import skills_router
 from edge_gateway.routes_usage import usage_router
 
 settings = get_settings()
@@ -56,6 +57,8 @@ TAGS = [
     {"name": "Admin: topics & experiments", "description": "Topic outcomes and prompt A/B tests. Admin only."},
     {"name": "Admin: quality & evals", "description": "Eval results, online judge scores, drift, eval-case curation. Admin only."},
     {"name": "Admin: experiments", "description": "Test datasets and config tests (draft vs live). Admin only."},
+    {"name": "Admin: skills", "description": "Install instruction packs (SKILL.md) from GitHub, review them, switch "
+                                             "them on per assistant (text only, scripts never run). Admin only."},
     {"name": "Admin: settings", "description": "Edit config values live (validated, versioned, rollback). Admin only."},
     {"name": "Admin: guardrails", "description": "Every time a guardrail fired (quota, injection, PII, grounding, uploads…). Admin only."},
     {"name": "Admin: accounts & runs", "description": "Plans, disabling users, run and LLM-call inspection. Admin only."},
@@ -87,6 +90,7 @@ app = create_service_app(
             (admin_dashboard_router, "/api/v1/admin/dashboard"),
             (settings_router, "/api/v1/admin/settings"),
             (experiments_router, "/api/v1/admin/experiments"),
+            (skills_router, "/api/v1/admin/skills"),
             (admin_router, "/api/v1/admin"),
         ],
         body_limits={"/api/v1/uploads": UPLOAD_BODY_LIMIT,

@@ -125,6 +125,15 @@
             "title": "Session Id",
             "type": "string"
           },
+          "skills": {
+            "description": "Triage: enabled skills (Admin → Skills) this question needs — their instructions are added to the assistant's prompt; unknown names are ignored",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Skills",
+            "type": "array"
+          },
           "stream": {
             "default": true,
             "description": "true: Server-Sent Events stream; false: one JSON document (RunResponse)",

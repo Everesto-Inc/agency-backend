@@ -14,9 +14,10 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel
 
-from agency_platform.config.registry import prompt_store, scope, topics
+from agency_platform.config.registry import prompt_store, scope, skills_config, topics
 from agency_platform.errors import AppError
 from agency_platform.llm.client import ModelGatewayClient
+from agency_platform.skills import SkillRef
 
 DIRECT = "direct"
 OUT_OF_SCOPE = "out_of_scope"
@@ -31,12 +32,26 @@ class TopicChoice:
     direct: bool = False   # one short answer, no assistant workflow (topic may be None → the caller picks one)
     reason: str = ""
     out_of_scope: bool = False   # outside config/scope.yaml → polite refusal (topic may be None → the caller picks one)
+    skills: tuple[str, ...] = ()  # enabled skills of the chosen assistant this question needs (Admin → Skills)
 
 
 class _Triage(BaseModel):
     route: str
     confidence: float = 0.5
     reason: str = ""
+    skills: list[str] = []
+
+
+def skills_lines(skills: list[SkillRef]) -> str:
+    """Pure: the enabled skills as triage sees them — name, assistants, description (never the instructions)."""
+    return "\n".join(f"- {s.name} (for {', '.join(s.assistants)}): {s.description[:300]}" for s in skills) or "(none)"
+
+
+def picked_skills(names: list[str], route: str, skills: list[SkillRef]) -> tuple[str, ...]:
+    """Pure: keep only skills that exist and belong to the chosen assistant, at most max_skills_per_run."""
+    allowed = {s.name for s in skills if route in s.assistants}
+    keep = [n for n in dict.fromkeys(n.strip().lower() for n in names) if n in allowed]
+    return tuple(keep[: skills_config().max_skills_per_run])
 
 
 def keyword_scores(prompt: str) -> dict[str, int]:
@@ -59,14 +74,15 @@ def conversation_lines(history: list[dict[str, str]] | None) -> str:
 
 
 async def triage(prompt: str, llm: ModelGatewayClient, history: list[dict[str, str]] | None,
-                 last_topic: str | None) -> _Triage:
+                 last_topic: str | None, skills: list[SkillRef] | None = None) -> _Triage:
     cfg = topics()
     enabled = cfg.enabled()
     sc = scope()
     domains = "\n".join(f"- {d.id} ({d.label}): {d.covers}" for d in sc.domains if d.id in enabled)
     p = prompt_store().get("edge", "triage")
     return await asyncio.wait_for(llm.structured(
-        [{"role": "system", "content": p.system.format(domains=domains, not_allowed="; ".join(sc.not_allowed) or "-")},
+        [{"role": "system", "content": p.system.format(domains=domains, not_allowed="; ".join(sc.not_allowed) or "-",
+                                                       skills=skills_lines(skills or []))},
          {"role": "user", "content": f"Conversation so far (last assistant: {last_topic or 'none'}):\n"
                                      f"{conversation_lines(history)}\n\nNew message:\n{prompt[:2000]}"}],
         _Triage, task="topic_classification", prompt=p, max_escalations=0,
@@ -89,20 +105,22 @@ def by_keywords(prompt: str, last_topic: str | None) -> TopicChoice | None:
 
 
 async def choose_topic(prompt: str, llm: ModelGatewayClient | None, last_topic: str | None = None,
-                       history: list[dict[str, str]] | None = None) -> TopicChoice:
+                       history: list[dict[str, str]] | None = None,
+                       skills: list[SkillRef] | None = None) -> TopicChoice:
     cfg = topics()
     enabled = cfg.enabled()
     follow = last_topic if last_topic in enabled else None
     if cfg.routing.triage and llm is not None:
         try:
-            t = await triage(prompt, llm, history, follow)
+            t = await triage(prompt, llm, history, follow, skills)
             if t.route == DIRECT:
                 return TopicChoice(follow, round(t.confidence, 2), "triage-direct", {}, direct=True, reason=t.reason)
             if t.route == OUT_OF_SCOPE:
                 return TopicChoice(follow, round(t.confidence, 2), "triage-out-of-scope", {}, out_of_scope=True,
                                    reason=t.reason)
             if t.route in enabled:
-                return TopicChoice(t.route, round(t.confidence, 2), "triage", {}, reason=t.reason)
+                return TopicChoice(t.route, round(t.confidence, 2), "triage", {}, reason=t.reason,
+                                   skills=picked_skills(t.skills, t.route, skills or []))
         except (AppError, TimeoutError):
             pass  # safety net below — routing never hangs on the triage call
     if (choice := by_keywords(prompt, follow)) is not None:

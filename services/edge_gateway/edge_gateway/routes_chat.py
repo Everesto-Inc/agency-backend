@@ -4,6 +4,7 @@ Topic services are also reachable directly (each has its own API under
 /api/v1/<topic>); /chat is the convenience front door for free-form prompts.
 """
 import json
+import logging
 from collections.abc import AsyncIterator
 from dataclasses import replace
 
@@ -29,11 +30,14 @@ from agency_platform.security.content import clean_user_prompt
 from agency_platform.security.guardrails import guardrail
 from agency_platform.security.pii import redact
 from agency_platform.service import openapi
+from agency_platform.skills import SkillRef, skill_library
 from agency_platform.tools.images import MAX_PER_MESSAGE
 from agency_platform.tools.vision import describe, prompt_with_pictures, question_only
 from edge_gateway.routes_images import image_store
 from edge_gateway.schemas import TopicSummary
 from edge_gateway.topic_router import TopicChoice, choose_topic
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Chat"], responses=openapi.AUTHED)
 topics_router = APIRouter(tags=["Topics"], responses=openapi.AUTHED)
@@ -128,7 +132,8 @@ async def chat(body: ChatBody, request: Request, user: CurrentUser):
         llm = _gateway_client(user, request) if user.plan_config.topics else None
         conv = await ConversationRepository(get_db()).get(user.id, body.session_id)
         history = await SessionStore(get_redis()).history(user.id, body.session_id)   # triage reads the chat
-        choice = await choose_topic(prompt, llm, last_topic=(conv or {}).get("last_topic"), history=history)
+        choice = await choose_topic(prompt, llm, last_topic=(conv or {}).get("last_topic"), history=history,
+                                    skills=await _enabled_skills())
         if (choice.direct or choice.out_of_scope) and choice.topic is None:   # new chat: any assistant the plan has
             choice = replace(choice, topic=next((t for t in enabled if user.plan_config.allows_topic(t)), None))
         if choice.topic is None:
@@ -150,8 +155,9 @@ async def chat(body: ChatBody, request: Request, user: CurrentUser):
         **({DRAFT_HEADER: str(d.id)} if (d := current_draft()) else {}),   # testing a config draft
     }
     payload = {"prompt": prompt, "session_id": body.session_id, "stream": body.stream, "direct": choice.direct,
-               "out_of_scope": choice.out_of_scope}
-    routed = {"topic": choice.topic, "confidence": choice.confidence, "method": choice.method, "reason": choice.reason}
+               "out_of_scope": choice.out_of_scope, "skills": list(choice.skills)}
+    routed = {"topic": choice.topic, "confidence": choice.confidence, "method": choice.method, "reason": choice.reason,
+              "skills": list(choice.skills)}
     http: httpx.AsyncClient = request.app.state.http
     timeout = httpx.Timeout(enabled[choice.topic].run_timeout_s + 30, connect=5)
 
@@ -190,6 +196,15 @@ async def chat(body: ChatBody, request: Request, user: CurrentUser):
     return StreamingResponse(
         relay(), media_type="text/event-stream", headers={"X-Accel-Buffering": "no", "Cache-Control": "no-store"}
     )
+
+
+async def _enabled_skills() -> list[SkillRef]:
+    """Enabled skills for triage — a database hiccup must never block a question (then: no skills)."""
+    try:
+        return await skill_library().index()
+    except Exception:
+        logger.warning("skills index unavailable; triage without skills", exc_info=True)
+        return []
 
 
 def _retry_after(resp: httpx.Response) -> dict[str, str]:

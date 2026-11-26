@@ -47,12 +47,21 @@ def market_context() -> str:
             f"the conversation), use {m.default_country} and say so in your summary.")
 
 
+def skill_file_tool(ctx: RunContext) -> Callable:
+    async def read_skill_file(skill: str, path: str, offset: int = 0) -> dict:
+        """Read a reference file of a skill in use (e.g. references/06-valuation.md). Long files come in parts:
+        call again with offset = next_offset."""
+        return await ctx.read_skill_file(skill, path, offset)
+    return read_skill_file
+
+
 def build_team(ctx: RunContext, tools: FinanceTools, client_factory: ClientFactory = gateway_client) -> RoundRobinGroupChat:
+    skills = ctx.skill_instructions()           # '' unless triage picked a skill for this question
     analyst = AssistantAgent(
         ANALYST,
         model_client=client_factory(ctx, "data_analysis"),
-        tools=tools.as_list(),
-        system_message=ctx.prompt("market_analyst").system + market_context(),
+        tools=tools.as_list() + ([skill_file_tool(ctx)] if ctx.skills else []),
+        system_message=ctx.prompt("market_analyst").system + market_context() + skills,
         reflect_on_tool_use=True,
         max_tool_iterations=params().team.max_tool_iterations,
         description="Fetches market data with tools and reports the figures.",
@@ -60,7 +69,7 @@ def build_team(ctx: RunContext, tools: FinanceTools, client_factory: ClientFacto
     strategist = AssistantAgent(
         STRATEGIST,
         model_client=client_factory(ctx, "investment_analysis"),
-        system_message=ctx.prompt("strategist").system,
+        system_message=ctx.prompt("strategist").system + skills,
         description="Writes the analysis using only reported figures.",
     )
     compliance = AssistantAgent(

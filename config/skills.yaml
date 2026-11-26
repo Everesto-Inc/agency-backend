@@ -1,0 +1,20 @@
+# Skills (Admin → Skills): instruction packs (SKILL.md folders) installed from GitHub. Hot-reloaded.
+# A skill is TEXT the model reads — scripts in a skill folder are never stored or run.
+
+# Assistants that can load skills (instructions added to their prompts + the read_skill_file tool).
+supported_assistants: [finance, ev_research]
+
+# At most this many skills per question (triage picks them from the enabled ones' descriptions).
+max_skills_per_run: 2
+
+# Installing
+allowed_licences: [MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MPL-2.0, CC-BY-4.0, CC0-1.0, Unlicense]
+text_extensions: [.md, .txt, .json, .yaml, .yml, .csv]
+max_files: 120
+max_file_bytes: 120000          # one file
+max_total_bytes: 2000000        # the whole skill
+
+# Using
+max_instruction_chars: 40000    # SKILL.md body added to the prompt (longer → cut, with a note)
+read_chunk_chars: 12000         # read_skill_file returns at most this much per call (offset for more)
+cache_s: 30                     # how fast an Admin change reaches the assistants

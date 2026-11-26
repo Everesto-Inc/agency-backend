@@ -133,6 +133,20 @@ class ScopeFile(BaseModel):
     reply_style: str = "Say kindly that this is outside what the agency does and suggest 2-3 example questions."
 
 
+class SkillsFile(BaseModel):
+    """config/skills.yaml — installing and using skills (instruction packs)."""
+    supported_assistants: list[str] = Field(default_factory=list)
+    max_skills_per_run: int = Field(2, ge=0, le=5)
+    allowed_licences: list[str] = Field(default_factory=list)
+    text_extensions: list[str] = Field(default_factory=lambda: [".md"])
+    max_files: int = Field(120, ge=1, le=500)
+    max_file_bytes: int = Field(120_000, ge=1_000, le=1_000_000)
+    max_total_bytes: int = Field(2_000_000, ge=10_000, le=10_000_000)
+    max_instruction_chars: int = Field(40_000, ge=1_000, le=200_000)
+    read_chunk_chars: int = Field(12_000, ge=1_000, le=100_000)
+    cache_s: int = Field(30, ge=1, le=3600)
+
+
 class MemoryFile(BaseModel):
     recent: int = Field(4, ge=0, le=20)
     fold_at_least: int = Field(6, ge=2, le=50)

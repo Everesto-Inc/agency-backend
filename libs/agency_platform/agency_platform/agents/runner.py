@@ -17,7 +17,7 @@ import logging
 import random
 import time
 from collections.abc import AsyncIterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 import httpx
@@ -42,6 +42,7 @@ from agency_platform.security.content import clean_user_prompt
 from agency_platform.security.guardrails import guardrail
 from agency_platform.security.injection import check
 from agency_platform.security.pii import redact
+from agency_platform.skills import LoadedSkill, skill_library
 from agency_platform.tools.vision import MARKER
 
 logger = logging.getLogger(__name__)
@@ -60,6 +61,7 @@ class RunRequest:
     request_id: str
     direct: bool = False       # triage: a short answer is enough → one short call, no agent workflow
     out_of_scope: bool = False  # triage: outside config/scope.yaml → polite refusal, no agent workflow
+    skills: list[str] = field(default_factory=list)  # triage: skills this question needs (validated when loaded)
 
 
 class _InjectionVerdict(BaseModel):
@@ -259,6 +261,7 @@ class TopicRunner:
         steps: list[str] = []
         saw_error = False
         fingerprint = self._prompts.fingerprint(self.topic, req.user.id)
+        skills: list[LoadedSkill] = []
 
         async def emit(ev: AgentEvent) -> None:
             await queue.put(ev)
@@ -267,12 +270,15 @@ class TopicRunner:
         summary: str | None = None
         summary_upto: datetime | None = None
         try:
-            await self._record_start(req, fingerprint)
+            skills = await self._load_skills(req)
+            await self._record_start(req, fingerprint, skills)
+            # a different instruction set → its own answer-cache entries
+            cache_fp = "+".join([fingerprint, *(s.ref.label for s in skills)])
             history = await self._memory(req)
             summary, summary_upto = await self._summary(req)
             cacheable = self._cache is not None and cfg.response_cache_ttl_s > 0 and not history
             cache_key = (
-                self._cache.key(self.topic, fingerprint, req.user.plan_config.max_tier, req.prompt) if cacheable else None
+                self._cache.key(self.topic, cache_fp, req.user.plan_config.max_tier, req.prompt) if cacheable else None
             )
 
             if cache_key and (hit := await self._cache.get(cache_key)):  # type: ignore[union-attr]
@@ -288,6 +294,10 @@ class TopicRunner:
                 CACHE_EVENTS.labels("response", self.topic, "miss").inc()
 
             ctx = self._build_context(req, cfg, history, summary)
+            ctx.skills = skills
+            if skills and not (req.direct or req.out_of_scope):
+                await emit(AgentEvent.status("Using skill " + ", ".join(s.ref.label for s in skills),
+                                             step="skills", skills=[s.ref.label for s in skills]))
             if req.out_of_scope:                 # input guardrail: outside what we talk about
                 await guardrail("scope", "blocked", topic=self.topic, detail="triage: outside config/scope.yaml")
                 text = await self._direct(ctx, req, kind="out_of_scope")
@@ -454,7 +464,7 @@ class TopicRunner:
         pii = privacy().pii
         return redact(text, pii.entities)[0] if pii.redact_in_storage else text
 
-    async def _record_start(self, req: RunRequest, fingerprint: str) -> None:
+    async def _record_start(self, req: RunRequest, fingerprint: str, skills: list[LoadedSkill] | None = None) -> None:
         await self._runs.start(
             request_id=req.request_id,
             user_id=req.user.id,
@@ -462,7 +472,18 @@ class TopicRunner:
             session_id=req.session_id,
             prompt=self._store_text(req.prompt),
             prompt_fingerprint=fingerprint,
+            skills=", ".join(s.ref.label for s in skills or [])[:300] or None,
         )
+
+    async def _load_skills(self, req: RunRequest) -> list[LoadedSkill]:
+        """The skills triage picked, if enabled for this assistant. A failure never blocks the answer."""
+        if not req.skills or req.direct or req.out_of_scope:
+            return []
+        try:
+            return await skill_library().load(self.topic, req.skills)
+        except Exception:
+            logger.warning("skills could not be loaded; answering without them", exc_info=True)
+            return []
 
     async def _finalise(self, req: RunRequest, outcome: _Outcome, latency_s: float, answer: str) -> dict:
         AGENT_RUNS.labels(self.topic, outcome.status).inc()

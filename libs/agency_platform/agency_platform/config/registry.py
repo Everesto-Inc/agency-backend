@@ -4,7 +4,16 @@ from functools import lru_cache
 from agency_platform.config.models_schema import ModelsFile
 from agency_platform.config.params import ParamFile
 from agency_platform.config.prompts import PromptStore
-from agency_platform.config.schemas import EvalsFile, GuardrailsFile, MemoryFile, PlansFile, PrivacyFile, ScopeFile, TopicsFile
+from agency_platform.config.schemas import (
+    EvalsFile,
+    GuardrailsFile,
+    MemoryFile,
+    PlansFile,
+    PrivacyFile,
+    ScopeFile,
+    SkillsFile,
+    TopicsFile,
+)
 from agency_platform.config.settings import get_settings
 
 
@@ -84,3 +93,12 @@ def scope_file() -> ParamFile[ScopeFile]:
 
 def scope() -> ScopeFile:
     return scope_file().get()
+
+
+@lru_cache
+def skills_file() -> ParamFile[SkillsFile]:
+    return _named(ParamFile(get_settings().config_dir / "skills.yaml", SkillsFile), "skills")
+
+
+def skills_config() -> SkillsFile:
+    return skills_file().get()

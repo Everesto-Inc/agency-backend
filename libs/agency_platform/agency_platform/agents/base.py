@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from agency_platform.auth.deps import AuthenticatedUser
 from agency_platform.config.prompts import Prompt, PromptStore
 from agency_platform.llm.client import ModelGatewayClient
+from agency_platform.skills import LoadedSkill, render_instructions, skill_library
 
 EventType = Literal["status", "tool_call", "tool_result", "artifact", "token", "error", "usage", "done"]
 
@@ -56,10 +57,19 @@ class RunContext:
     prompts: PromptStore
     history: list[dict[str, str]] = field(default_factory=list)
     summary: str | None = None   # running summary of the chat's older messages (memory layer 2)
+    skills: list[LoadedSkill] = field(default_factory=list)   # skills triage picked for this question
 
     def prompt(self, name: str) -> Prompt:
         """Resolve a prompt for this user (sticky A/B experiment arm if one is running)."""
         return self.prompts.get(self.topic, name, subject=self.user.id)
+
+    def skill_instructions(self) -> str:
+        """Text to append to the assistant's main prompt ('' when no skill is in use)."""
+        return render_instructions(self.skills)
+
+    async def read_skill_file(self, skill: str, path: str, offset: int = 0) -> dict[str, Any]:
+        """Tool body: a reference file of a skill in use (chunked)."""
+        return await skill_library().read(self.skills, skill, path, offset)
 
 
 class TopicAgent(ABC):

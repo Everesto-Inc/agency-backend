@@ -18,6 +18,9 @@ class RunBody(BaseModel):
                                                   "what the agency can do; logged as a guardrail event")
     direct: bool = Field(False, description="Triage decided a short answer is enough (greeting, 'who are you', a "
                                             "simple general question): one short call, no agent workflow")
+    skills: list[str] = Field(default_factory=list, max_length=5,
+                              description="Triage: enabled skills (Admin → Skills) this question needs — their "
+                                          "instructions are added to the assistant's prompt; unknown names are ignored")
 
 
 class FeedbackBody(BaseModel):

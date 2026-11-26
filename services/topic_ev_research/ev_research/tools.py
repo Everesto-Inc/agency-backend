@@ -200,21 +200,31 @@ TOOL_SPECS = [
 ]
 
 
+SKILL_FILE_SPEC = _fn("read_skill_file", "Read a reference file of a skill in use for this question (listed under "
+                      "'Skills for this question'). Long files come in parts: call again with offset = next_offset.",
+                      {"skill": {"type": "string"}, "path": {"type": "string"}, "offset": {"type": "integer"}},
+                      ["skill", "path"])
+
+
 def toolbox(sources, ctx) -> dict[str, Callable[..., Awaitable[dict[str, Any]]]]:
     prices = make_energy_prices(sources, ctx)
-    return {"search_catalog": search_catalog, "car_specs": make_car_specs(sources, ctx), "energy_prices": prices,
-            "running_costs": make_running_costs(prices), "charging_time": charging_time}
+    tools = {"search_catalog": search_catalog, "car_specs": make_car_specs(sources, ctx), "energy_prices": prices,
+             "running_costs": make_running_costs(prices), "charging_time": charging_time}
+    if getattr(ctx, "skills", None):
+        tools["read_skill_file"] = ctx.read_skill_file
+    return tools
 
 
 # ------------------------------------------------------------------ the loop
 async def run_tools(question: str, ctx, sources, system: str, history: list[dict[str, str]], prompt) -> dict[str, Any]:
     """Model ↔ tools until it answers (max MAX_STEPS rounds). Returns the answer + every tool call (trace)."""
     tools = toolbox(sources, ctx)
+    specs = TOOL_SPECS + ([SKILL_FILE_SPEC] if "read_skill_file" in tools else [])
     messages: list[dict[str, Any]] = [{"role": "system", "content": system}, *history, {"role": "user", "content": question}]
     trace: list[dict[str, Any]] = []
     for step in range(MAX_STEPS + 1):
         force_answer = step == MAX_STEPS
-        result = await ctx.llm.chat(messages, task="tool_use", prompt=prompt, tools=TOOL_SPECS,
+        result = await ctx.llm.chat(messages, task="tool_use", prompt=prompt, tools=specs,
                                     tool_choice="none" if force_answer else "auto")
         msg = (result.raw.get("choices") or [{}])[0].get("message") or {}
         calls = [] if force_answer else (msg.get("tool_calls") or [])

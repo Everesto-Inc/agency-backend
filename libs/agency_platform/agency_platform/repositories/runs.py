@@ -28,12 +28,13 @@ class RunRepository:
         self._db = db
 
     async def start(self, *, request_id: str, user_id: str, topic: str, session_id: str, prompt: str,
-                    prompt_fingerprint: str) -> None:
+                    prompt_fingerprint: str, skills: str | None = None) -> None:
         await self._db.execute(
-            """INSERT INTO agent_runs (request_id, user_id, topic, session_id, prompt, status, prompt_fingerprint)
-               VALUES (%s, %s, %s, %s, %s, 'running', %s)
+            """INSERT INTO agent_runs (request_id, user_id, topic, session_id, prompt, status, prompt_fingerprint,
+                                       skills)
+               VALUES (%s, %s, %s, %s, %s, 'running', %s, %s)
                ON DUPLICATE KEY UPDATE request_id = request_id""",
-            (request_id, user_id, topic, session_id, prompt, prompt_fingerprint),
+            (request_id, user_id, topic, session_id, prompt, prompt_fingerprint, skills),
         )
 
     async def finish(self, request_id: str, r: RunResult) -> None:
