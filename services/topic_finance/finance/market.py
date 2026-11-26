@@ -29,6 +29,7 @@ class MarketData(Protocol):
     async def quote(self, symbol: str) -> dict[str, Any]: ...
     async def fundamentals(self, symbol: str) -> dict[str, Any]: ...
     async def closes(self, symbol: str, period: str) -> list[float]: ...
+    async def search(self, query: str, limit: int) -> list[dict[str, Any]]: ...
 
 
 _FUNDAMENTAL_KEYS = {
@@ -82,6 +83,18 @@ class YFinanceMarketData:
             return out
 
         return await self._cached(rkey(f"mkt:f:{symbol}"), params().market_data.history_cache_ttl_s, load)
+
+    async def search(self, query: str, limit: int) -> list[dict[str, Any]]:
+        """Ticker lookup by name ("Amundi MSCI World", "Schneider Electric"): symbol, exchange, type, name."""
+        import yfinance as yf
+
+        def load() -> list[dict[str, Any]]:
+            quotes = yf.Search(query, max_results=limit, news_count=0).quotes or []
+            return [{"symbol": q.get("symbol"), "exchange": q.get("exchange"), "type": q.get("quoteType"),
+                     "name": q.get("longname") or q.get("shortname")} for q in quotes if q.get("symbol")]
+
+        key = rkey(f"mkt:s:{query.strip().lower()[:80]}:{limit}")
+        return await self._cached(key, params().market_data.history_cache_ttl_s, load)
 
     async def closes(self, symbol: str, period: str) -> list[float]:
         import yfinance as yf

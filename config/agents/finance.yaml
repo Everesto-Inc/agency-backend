@@ -7,6 +7,18 @@ market_data:
   default_period: 1y            # 1mo 3mo 6mo 1y 2y 5y
   max_symbols_per_request: 10
 
+markets:
+  # Country when the user names none (in the question or the conversation); the answer says it was assumed.
+  default_country: FR
+  # Exchanges per country (yfinance codes) — search_symbols keeps listings the user can actually buy there.
+  by_country:
+    FR: {exchanges: [PAR], currency: EUR}
+    DE: {exchanges: [GER, FRA, STU, MUN, HAM, DUS, BER], currency: EUR}
+    NL: {exchanges: [AMS], currency: EUR}
+    GB: {exchanges: [LSE], currency: GBP}
+    US: {exchanges: [NMS, NYQ, NGM, NCM, PCX, ASE, BTS], currency: USD}
+    CH: {exchanges: [EBS], currency: CHF}
+
 analytics:
   risk_free_rate: 0.04          # annual, for Sharpe
   benchmark: SPY                # for beta
@@ -14,6 +26,7 @@ analytics:
 
 team:
   max_messages: 10              # hard cap on the AutoGen conversation
+  max_tool_iterations: 6        # analyst tool rounds (search → quotes → risk/return)
   require_compliance_approval: true
   disclaimer: >-
     This is educational market analysis based on public data, not personalised

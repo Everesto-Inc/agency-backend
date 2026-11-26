@@ -39,14 +39,22 @@ def gateway_client(ctx: RunContext, task: str) -> ChatCompletionClient:
     )
 
 
+def market_context() -> str:
+    """Pure: the configured countries + default, appended to the analyst's instructions."""
+    m = params().markets
+    known = ", ".join(f"{c} ({v.currency})" for c, v in m.by_country.items())
+    return (f"\n\nMarkets you can search by country: {known}. If the user names no country (in the question or "
+            f"the conversation), use {m.default_country} and say so in your summary.")
+
+
 def build_team(ctx: RunContext, tools: FinanceTools, client_factory: ClientFactory = gateway_client) -> RoundRobinGroupChat:
     analyst = AssistantAgent(
         ANALYST,
         model_client=client_factory(ctx, "data_analysis"),
         tools=tools.as_list(),
-        system_message=ctx.prompt("market_analyst").system,
+        system_message=ctx.prompt("market_analyst").system + market_context(),
         reflect_on_tool_use=True,
-        max_tool_iterations=4,
+        max_tool_iterations=params().team.max_tool_iterations,
         description="Fetches market data with tools and reports the figures.",
     )
     strategist = AssistantAgent(

@@ -35,6 +35,23 @@ class FinanceTools:
             raise BadRequestError(f"provide 1-{limit} symbols")
         return [clean_symbol(s) for s in symbols]
 
+    async def search_symbols(self, query: str, country: str = "") -> dict[str, Any]:
+        """Find ticker symbols by name (e.g. "Amundi MSCI World", "S&P 500 ETF", "Schneider Electric").
+        country = ISO code (FR, DE, US, GB...) keeps only listings on that country's exchanges."""
+        try:
+            q = query.strip()[:80]
+            if len(q) < 2:
+                raise BadRequestError("query too short")
+            found = await self._m.search(q, 15)
+            c = (country or "").strip().upper()
+            market = params().markets.by_country.get(c)
+            if market:
+                found = [f for f in found if f.get("exchange") in market.exchanges]
+            result = {"query": q, "country": c or None, "results": found[:8]}
+            return self._record("search_symbols", {"query": q, "country": c or None}, result)
+        except AppError as exc:
+            return {"error": exc.message}
+
     async def get_quote(self, symbol: str) -> dict[str, Any]:
         """Latest price for one ticker symbol (e.g. AAPL, VTI)."""
         try:
@@ -83,4 +100,5 @@ class FinanceTools:
             return {"error": getattr(exc, "message", str(exc))}
 
     def as_list(self) -> list:
-        return [self.get_quote, self.get_fundamentals, self.get_risk_return, self.get_portfolio_metrics]
+        return [self.search_symbols, self.get_quote, self.get_fundamentals, self.get_risk_return,
+                self.get_portfolio_metrics]

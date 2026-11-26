@@ -24,6 +24,10 @@ class FakeMarket:
     async def fundamentals(self, symbol):
         return {"symbol": symbol, "trailing_pe": 20.0}
 
+    async def search(self, query, limit):
+        return [{"symbol": "CW8.PA", "exchange": "PAR", "type": "ETF", "name": "Amundi MSCI World"},
+                {"symbol": "URTH", "exchange": "PCX", "type": "ETF", "name": "iShares MSCI World"}]
+
     async def closes(self, symbol, period):
         growth = 1.0004 if symbol != "BND" else 1.0001
         return [100 * growth**i * (1 + 0.01 * ((i % 5) - 2)) for i in range(253)]
@@ -67,15 +71,37 @@ async def test_team_uses_tools_mixes_tiers_and_gates_on_compliance():
     assert answer.startswith("## VTI risk") and "not personalised" in answer  # disclaimer appended deterministically
 
 
-async def test_unapproved_analysis_is_withheld():
+async def test_unapproved_analysis_is_withheld_but_the_verified_data_is_shown():
     factory = replay_factory({
-        "data_analysis": ["no data", "no data", "no data", "no data"],
+        "data_analysis": [tool_call("get_risk_return", '{"symbol": "VTI", "period": "1y"}'), "VTI data."]
+                         + ["no more data"] * 4,
         "investment_analysis": ["Buy now, guaranteed 50%!"] * 4,
         "compliance_review": ["REVISE: promises returns"] * 4,
     })
     events = await run(factory)
-    assert not any(e.type == "token" for e in events)
-    assert any(e.type == "error" and e.data["code"] == "COMPLIANCE_REJECTED" for e in events)
+    assert not any(e.type == "error" for e in events)               # never a dead end
+    answer = next(e for e in events if e.type == "token").content
+    assert "guaranteed" not in answer                                # the rejected text is withheld
+    assert "| VTI |" in answer and "can't recommend" in answer      # numbers from the tool only
+
+
+def test_data_only_answer_without_data_asks_for_names():
+    from finance.agent import data_only_answer
+    assert "Name one or more" in data_only_answer([])
+
+
+async def test_search_symbols_keeps_the_country_listings():
+    tools = FinanceTools(FakeMarket())
+    fr = await tools.search_symbols("MSCI World ETF", country="fr")
+    assert [r["symbol"] for r in fr["results"]] == ["CW8.PA"]
+    anywhere = await tools.search_symbols("MSCI World ETF")
+    assert len(anywhere["results"]) == 2
+    assert "error" in await tools.search_symbols(" ")
+
+
+def test_analyst_gets_the_default_country():
+    from finance.team import market_context
+    assert "use FR" in market_context() and "DE (EUR)" in market_context()
 
 
 async def test_tools_validate_inputs():

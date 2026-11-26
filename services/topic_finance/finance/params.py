@@ -21,6 +21,17 @@ class MarketDataParams(BaseModel):
     max_symbols_per_request: int = Field(10, ge=1, le=50)
 
 
+class Market(BaseModel):
+    exchanges: list[str]          # yfinance exchange codes listed in this country (search filter)
+    currency: str
+
+
+class MarketsParams(BaseModel):
+    # country when the user names none — the answer says it was assumed
+    default_country: str = Field("FR", min_length=2, max_length=2)
+    by_country: dict[str, Market] = Field(default_factory=dict)
+
+
 class AnalyticsParams(BaseModel):
     risk_free_rate: float = Field(0.04, ge=0, lt=1)
     benchmark: str = "SPY"
@@ -29,12 +40,14 @@ class AnalyticsParams(BaseModel):
 
 class TeamParams(BaseModel):
     max_messages: int = Field(10, ge=3, le=30)
+    max_tool_iterations: int = Field(6, ge=1, le=12)
     require_compliance_approval: bool = True
     disclaimer: str
 
 
 class FinanceParams(BaseModel):
     market_data: MarketDataParams
+    markets: MarketsParams = Field(default_factory=MarketsParams)
     analytics: AnalyticsParams
     team: TeamParams
 
