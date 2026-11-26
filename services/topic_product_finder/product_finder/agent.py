@@ -38,6 +38,11 @@ class ProductFinderAgent(TopicAgent):
         # the chat's last messages go along: "and in France?" refers to the product asked before
         plan = await self._crews.plan(with_history(prompt, ctx.history, summary=ctx.summary),
                                       default_country=params().search.default_country, ctx=ctx)
+        if plan.intent == "about_previous" and ctx.history:
+            # "which storage was that?" is about the answer already given: no new search, no changed product
+            yield AgentEvent.status("Answering from the results already shown", step="follow_up")
+            yield AgentEvent.answer(await self._follow_up(prompt, ctx))
+            return
         yield AgentEvent.status(f"Looking for: {plan.product} ({plan.country_code}, {plan.currency})",
                                 step="plan", must_match=plan.must_match)
 
@@ -65,7 +70,15 @@ class ProductFinderAgent(TopicAgent):
             "ranked": [o.model_dump() for o in ranked],
             "all_verified": [o.model_dump() for o in found],
         })
-        yield AgentEvent.answer(render_answer(plan, ranked, len(urls), caveats))
+        yield AgentEvent.answer(render_answer(plan, ranked, len(urls), caveats, found))
+
+    async def _follow_up(self, prompt: str, ctx: RunContext) -> str:
+        p = ctx.prompt("follow_up")
+        history = [{"role": m["role"], "content": m["content"]} for m in ctx.history[-6:]
+                   if m["role"] in ("user", "assistant")]
+        result = await ctx.llm.chat([{"role": "system", "content": p.system}, *history,
+                                     {"role": "user", "content": prompt}], task="direct", prompt=p)
+        return (result.content or "").strip() or "I don't have that detail in the results above."
 
     async def _persist(self, ctx: RunContext, plan: SearchPlan, found: list[Offer]) -> None:
         if not found:

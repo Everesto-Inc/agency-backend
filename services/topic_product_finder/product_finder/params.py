@@ -19,6 +19,8 @@ class SearchParams(BaseModel):
     max_pages_to_check: int = Field(12, ge=1, le=40)
     exclude_domains: list[str] = Field(default_factory=list)
     retailer_hints: dict[str, list[str]] = Field(default_factory=dict)
+    # mobile carriers: their device prices are often only with a plan → always read by the model (requires_plan)
+    carrier_domains: list[str] = Field(default_factory=list)
 
 
 class FetchParams(BaseModel):

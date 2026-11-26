@@ -14,6 +14,10 @@ class SearchPlan(BaseModel):
     currency: str = Field("EUR", min_length=3, max_length=3)
     acceptable_conditions: list[Condition] = Field(default_factory=lambda: ["new"])
     queries: list[str] = Field(..., min_length=1, max_length=8)
+    intent: Literal["search", "about_previous"] = Field(
+        "search", description="about_previous = the message only asks about the results already given (no new search)")
+    variant_options: list[str] = Field(
+        default_factory=list, description="Price-changing attributes the shopper did NOT give (e.g. storage)")
 
 
 class PageExtraction(BaseModel):
@@ -24,6 +28,8 @@ class PageExtraction(BaseModel):
     shipping: float | None = None
     condition: Condition | None = None
     in_stock: bool | None = None
+    variant: str | None = None          # e.g. "256 GB" — the version this price is for
+    requires_plan: bool | None = None   # price only with a phone plan / subscription / contract / trade-in
 
 
 class Offer(BaseModel):
@@ -37,6 +43,8 @@ class Offer(BaseModel):
     condition: Condition | None = None
     in_stock: bool | None = None
     source: Literal["structured_data", "llm_verified"]
+    variant: str | None = None
+    requires_plan: bool | None = None
     total_in_target: float | None = None
     target_currency: str | None = None
     verdict: Verdict | None = None

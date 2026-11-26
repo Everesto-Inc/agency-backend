@@ -17,6 +17,11 @@ search:
     IN: [amazon.in, flipkart.com, croma.com, reliancedigital.in]
     NP: [daraz.com.np, sastodeal.com, hamrobazaar.com]
 
+  # Mobile carriers: prices are often only valid with a phone plan — always read by the model, and offers that need
+  # a plan / contract are left out of the ranking (the answer says how many).
+  carrier_domains: [sfr.fr, bouyguestelecom.fr, orange.fr, sosh.fr, free.fr, red-by-sfr.fr,
+                    telekom.de, vodafone.de, o2online.de, 1und1.de, congstar.de]
+
 fetch:
   concurrency: 6
   timeout_s: 12

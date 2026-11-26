@@ -87,7 +87,8 @@ class CrewAICrews:
             verbose=False,
         )
         listing = json.dumps(
-            [{"id": o.id, "retailer": o.retailer, "title": o.title, "condition": o.condition} for o in offers],
+            [{"id": o.id, "retailer": o.retailer, "title": o.title, "version": o.variant, "condition": o.condition,
+              "needs_phone_plan": o.requires_plan} for o in offers],
             ensure_ascii=False,
         )
         task = Task(

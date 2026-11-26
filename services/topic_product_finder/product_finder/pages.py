@@ -1,6 +1,7 @@
 """Page parsing: schema.org JSON-LD offers (exact, free) and visible text (for
 LLM extraction + price verification)."""
 import json
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -17,6 +18,16 @@ class StructuredOffer:
     currency: str
     condition: str | None
     in_stock: bool | None
+    from_price: bool = False   # AggregateOffer lowPrice: the cheapest of several versions, not this one's price
+
+
+_STORAGE = re.compile(r"\b(\d{1,4})\s?(GB|Go|TB|To)\b", re.IGNORECASE)
+
+
+def storage_in(text: str | None) -> str | None:
+    """Pure: the storage size named in a title ("iPhone 18 Pro 256 Go" → "256 GB"); None if absent or ambiguous."""
+    found = {f"{n} {'TB' if u.lower() in ('tb', 'to') else 'GB'}" for n, u in _STORAGE.findall(text or "")}
+    return found.pop() if len(found) == 1 else None
 
 
 def visible_text(html: str, max_chars: int) -> str:
@@ -72,7 +83,8 @@ def structured_offers(html: str) -> list[StructuredOffer]:
             for offer in _walk(offers) if offers else []:
                 if not ({"offer", "aggregateoffer"} & _types(offer)):
                     continue
-                price = _to_float(offer.get("price")) or _to_float(offer.get("lowPrice"))
+                exact = _to_float(offer.get("price"))
+                price = exact or _to_float(offer.get("lowPrice"))
                 currency = offer.get("priceCurrency")
                 if price is None or not isinstance(currency, str) or len(currency) != 3:
                     continue
@@ -84,5 +96,6 @@ def structured_offers(html: str) -> list[StructuredOffer]:
                     currency=currency.upper(),
                     condition=_CONDITIONS.get(condition),
                     in_stock=None if not availability else ("instock" in availability or "limitedavailability" in availability),
+                    from_price=exact is None,
                 ))
     return found
