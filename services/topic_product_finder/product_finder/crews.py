@@ -1,29 +1,29 @@
-"""The CrewAI part: two small crews, each bound to a model-gateway *task*.
+"""The CrewAI part: one research agent with tools, bound to the model gateway's task-tool_use (mid tier).
 
-  planner crew  (task-query_planning   -> low tier)  request -> SearchPlan
-  analyst crew  (task-product_matching -> mid tier)  offers  -> MatchReport
-
-The crews reason; deterministic code does search, fetching, price extraction
-verification, FX and ranking. CrewAI's LLM is pointed at the model gateway
-with the run's call token, so its calls are tiered, plan-capped and tracked
-exactly like every other framework's.
+The agent decides each step — search reviews/guides to discover candidates, search shops, read pages, search again —
+and writes the answer. Our code does the rest: fetching (SSRF-safe), price extraction + verification on the page,
+currency conversion, budgets. CrewAI runs the crew in a worker thread (kickoff_async) and calls tools synchronously;
+each tool hands its coroutine back to the service's event loop (shared HTTP / Redis clients) and waits for it.
 """
+import asyncio
 import json
 import os
 import tempfile
-from collections.abc import Iterator
+from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager
+from datetime import UTC, datetime
 from hashlib import md5
-from typing import Protocol
+from typing import Any, Protocol
 
 import portalocker
 from crewai import LLM, Agent, Crew, Process, Task
+from crewai.tools import BaseTool
 from crewai_core.lock_store import set_lock_backend
+from pydantic import BaseModel, ConfigDict, Field
 
 from agency_platform.agents.base import RunContext
-from agency_platform.security.content import UNTRUSTED_DATA_RULES, fence_untrusted
-from product_finder.models import MatchReport, Offer, SearchPlan
 from product_finder.params import params
+from product_finder.research import Research
 
 
 @contextmanager
@@ -41,73 +41,83 @@ set_lock_backend(_file_lock)
 
 
 class Crews(Protocol):
-    async def plan(self, request: str, default_country: str, ctx: RunContext) -> SearchPlan: ...
-    async def match(self, plan: SearchPlan, offers: list[Offer], ctx: RunContext) -> MatchReport: ...
+    async def research(self, question: str, research: Research, ctx: RunContext) -> str: ...
 
 
 def _llm(ctx: RunContext, task: str) -> LLM:
     cfg = ctx.llm.openai_compat(task=task)
-    return LLM(model=f"openai/{cfg.model}", base_url=cfg.base_url, api_key=cfg.api_key, temperature=0)
+    return LLM(model=f"openai/{cfg.model}", base_url=cfg.base_url, api_key=cfg.api_key, temperature=0.2)
+
+
+# ------------------------------------------------------------------ tools (sync for CrewAI → our async code)
+class _SearchArgs(BaseModel):
+    query: str = Field(..., description="What to search, e.g. 'best leather folio iPad Pro 13 M4 review' or a model name")
+    shops_only: bool = Field(False, description="true = only the country's main online shops (for prices)")
+    country: str = Field("", description="ISO country code if the shopper named one (FR, DE, US...), else empty")
+
+
+class _ReadArgs(BaseModel):
+    url: str = Field(..., description="A page address from the search results")
+
+
+class _FxArgs(BaseModel):
+    amount: float
+    from_currency: str = Field(..., description="ISO 4217, e.g. USD")
+    to_currency: str = Field(..., description="ISO 4217, e.g. EUR")
+
+
+class _BridgeTool(BaseTool):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    fn: Callable[..., Awaitable[dict[str, Any]]] = Field(exclude=True)
+    loop: Any = Field(exclude=True)
+
+    def _run(self, **kwargs: Any) -> str:
+        future = asyncio.run_coroutine_threadsafe(self.fn(**kwargs), self.loop)
+        try:
+            result = future.result(timeout=params().research.tool_timeout_s)
+        except TimeoutError:
+            future.cancel()
+            result = {"error": "the tool took too long"}
+        return json.dumps(result, ensure_ascii=False, default=str)
+
+
+def research_tools(research: Research, loop: asyncio.AbstractEventLoop) -> list[BaseTool]:
+    return [
+        _BridgeTool(name="search_web", args_schema=_SearchArgs, fn=research.search_web, loop=loop,
+                    description="Search the web: reviews, buying guides and comparisons to discover products, or "
+                                "shops (shops_only=true) to find offers. Returns titles, addresses and snippets."),
+        _BridgeTool(name="read_page", args_schema=_ReadArgs, fn=research.read_page, loop=loop,
+                    description="Read one page: its text, and the shop's offer with a price verified on the page "
+                                "(offer.price_verified_on_page). Review pages have text but no offer."),
+        _BridgeTool(name="convert_currency", args_schema=_FxArgs, fn=research.convert_currency, loop=loop,
+                    description="Convert an amount between currencies (ECB rate, for comparison only)."),
+    ]
 
 
 class CrewAICrews:
-    async def plan(self, request: str, default_country: str, ctx: RunContext) -> SearchPlan:
-        role = ctx.prompt("planner_role").system
-        strategist = Agent(
-            role="Shopping Research Strategist",
-            goal="Define the exact product and the best search queries to find its cheapest offers",
-            backstory=role,
-            llm=_llm(ctx, "query_planning"),
+    async def research(self, question: str, research: Research, ctx: RunContext) -> str:
+        cfg = params().research
+        p_role, p_task = ctx.prompt("research_role"), ctx.prompt("research_task")
+        agent = Agent(
+            role="Product Research Specialist",
+            goal="Find the products that fit the shopper's request and their best current prices, with proof",
+            backstory=p_role.system,
+            llm=_llm(ctx, "tool_use"),
+            tools=research_tools(research, asyncio.get_running_loop()),
             allow_delegation=False,
-            max_iter=2,
+            max_iter=cfg.max_iterations,
             verbose=False,
         )
         task = Task(
-            description=ctx.prompt("planner_task").system.format(
-                request=request.replace("{", "(").replace("}", ")"),
-                default_country=default_country,
-                max_queries=params().search.max_queries,
-            ),
-            expected_output="A SearchPlan object",
-            output_pydantic=SearchPlan,
-            agent=strategist,
+            description=p_task.system.format(
+                request=question.replace("{", "(").replace("}", ")"),
+                default_country=research.default_country,
+                today=datetime.now(UTC).date().isoformat(),
+                max_pages=cfg.max_pages,
+                max_searches=cfg.max_searches,
+            ) + ctx.skill_instructions().replace("{", "(").replace("}", ")"),
+            expected_output="The answer for the shopper in Markdown",
+            agent=agent,
         )
-        out = await Crew(agents=[strategist], tasks=[task], process=Process.sequential, verbose=False).kickoff_async()
-        return _as(out, SearchPlan)
-
-    async def match(self, plan: SearchPlan, offers: list[Offer], ctx: RunContext) -> MatchReport:
-        role = ctx.prompt("analyst_role").system
-        analyst = Agent(
-            role="Product Match Analyst",
-            goal="Classify each offer as exact, variant, accessory or mismatch for the wanted product",
-            backstory=role,
-            llm=_llm(ctx, "product_matching"),
-            allow_delegation=False,
-            max_iter=2,
-            verbose=False,
-        )
-        listing = json.dumps(
-            [{"id": o.id, "retailer": o.retailer, "title": o.title, "version": o.variant, "condition": o.condition,
-              "needs_phone_plan": o.requires_plan} for o in offers],
-            ensure_ascii=False,
-        )
-        task = Task(
-            description=ctx.prompt("analyst_task").system.format(
-                product=plan.product,
-                must_match=", ".join(plan.must_match) or "the exact model",
-                untrusted_rules=UNTRUSTED_DATA_RULES,
-                offers=fence_untrusted(listing, "retailer pages").replace("{", "(").replace("}", ")"),
-            ),
-            expected_output="A MatchReport object with one verdict per offer id",
-            output_pydantic=MatchReport,
-            agent=analyst,
-        )
-        out = await Crew(agents=[analyst], tasks=[task], process=Process.sequential, verbose=False).kickoff_async()
-        return _as(out, MatchReport)
-
-
-def _as(output, model):
-    if isinstance(getattr(output, "pydantic", None), model):
-        return output.pydantic
-    raw = getattr(output, "json_dict", None) or getattr(output, "raw", "{}")
-    return model.model_validate(raw if isinstance(raw, dict) else json.loads(raw))
+        out = await Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False).kickoff_async()
+        return str(getattr(out, "raw", out) or "").strip()

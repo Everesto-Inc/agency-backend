@@ -19,12 +19,12 @@ A multi-agent platform where every topic agent is its own service, built on
 whatever framework suits it, and every one gets the same LLMOps guarantees from
 a shared platform:
 
-| | Topic 1 · EV helper | Topic 2 · Cheapest product finder | Topic 3 · Finance analyst |
+| | Topic 1 · EV helper | Topic 2 · Product finder | Topic 3 · Finance analyst |
 |---|---|---|---|
 | Framework | LangGraph | CrewAI | AutoGen (agentchat) |
 | Service / API | `topic-ev-research` · `/api/v1/ev_research` | `topic-product-finder` · `/api/v1/product_finder` | `topic-finance` · `/api/v1/finance` |
-| Grounding | crawled specs, numbers verified on page, Decimal TCO math | JSON-LD offers or LLM extraction verified against `currency+amount` on page, ECB FX, deterministic ranking | every figure from deterministic market-data tools, compliance agent gate |
-| Model tiers used | `intent_parsing`→low, `extraction`→low, `synthesis`→mid | `query_planning`→low, `extraction`→low, `product_matching`→mid | `data_analysis`→mid, `investment_analysis`→high, `compliance_review`→low |
+| Grounding | crawled specs, numbers verified on page, Decimal TCO math | research agent with tools (search, read page, FX); page prices from JSON-LD or LLM extraction verified on the page; every price in the answer checked against tool results | every figure from deterministic market-data tools, compliance agent gate |
+| Model tiers used | `intent_parsing`→low, `extraction`→low, `synthesis`→mid | `tool_use`→mid (the agent), `extraction`→low (reading pages) | `data_analysis`→mid, `investment_analysis`→high, `compliance_review`→low |
 
 ## Architecture
 

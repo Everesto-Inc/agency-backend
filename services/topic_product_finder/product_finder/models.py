@@ -1,26 +1,12 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 Condition = Literal["new", "refurbished", "used"]
-Verdict = Literal["exact", "variant", "accessory", "mismatch"]
-
-
-class SearchPlan(BaseModel):
-    product: str = Field(..., description="Canonical product name incl. exact model")
-    must_match: list[str] = Field(default_factory=list, description="Attributes an offer must have")
-    country_code: str = Field("FR", min_length=2, max_length=2)
-    country_stated: bool = Field(True, description="false = the shopper named no country; the default was used")
-    currency: str = Field("EUR", min_length=3, max_length=3)
-    acceptable_conditions: list[Condition] = Field(default_factory=lambda: ["new"])
-    queries: list[str] = Field(..., min_length=1, max_length=8)
-    intent: Literal["search", "about_previous"] = Field(
-        "search", description="about_previous = the message only asks about the results already given (no new search)")
-    variant_options: list[str] = Field(
-        default_factory=list, description="Price-changing attributes the shopper did NOT give (e.g. storage)")
 
 
 class PageExtraction(BaseModel):
+    """What the cheap model reads from one shop page (the price is then checked on the page by code)."""
     is_product_page: bool = False
     title: str | None = None
     price: float | None = None
@@ -33,6 +19,7 @@ class PageExtraction(BaseModel):
 
 
 class Offer(BaseModel):
+    """A shop's offer whose price was verified on its page."""
     id: str
     retailer: str
     url: str
@@ -45,18 +32,3 @@ class Offer(BaseModel):
     source: Literal["structured_data", "llm_verified"]
     variant: str | None = None
     requires_plan: bool | None = None
-    total_in_target: float | None = None
-    target_currency: str | None = None
-    verdict: Verdict | None = None
-    verdict_note: str | None = None
-
-
-class OfferVerdict(BaseModel):
-    id: str
-    verdict: Verdict
-    note: str = Field("", max_length=200)
-
-
-class MatchReport(BaseModel):
-    verdicts: list[OfferVerdict]
-    caveats: list[str] = Field(default_factory=list, max_length=3)

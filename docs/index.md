@@ -7,7 +7,7 @@ model routing, evaluation and monitoring.
 | Topic | What it answers | Framework | API |
 |---|---|---|---|
 | **EV Helper** (`ev_research`) | EV specs, charging cost, EV vs petrol/diesel | LangGraph | [agency-ev-research-api](/catalog/default/api/agency-ev-research-api/definition) |
-| **Cheapest Product Finder** (`product_finder`) | the cheapest verified offer for a product | CrewAI | [agency-product-finder-api](/catalog/default/api/agency-product-finder-api/definition) |
+| **Cheapest Product Finder** (`product_finder`) | finds products that fit (reviews, guides) and their best prices, verified on shop pages | CrewAI | [agency-product-finder-api](/catalog/default/api/agency-product-finder-api/definition) |
 | **Finance Analyst** (`finance`) | volatility, drawdown, analysis of tickers | AutoGen | [agency-finance-api](/catalog/default/api/agency-finance-api/definition) |
 
 Users talk to **one public API** ([agency-api](/catalog/default/api/agency-api/definition)): they log in,

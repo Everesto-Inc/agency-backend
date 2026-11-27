@@ -18,5 +18,5 @@ async def record_offers(*, request_id: str, product: str, country_code: str, off
     await get_db().executemany(
         _INSERT,
         [(request_id, key, country_code, o.retailer, o.title, o.url, o.price, o.currency, o.shipping,
-          o.total_in_target, o.target_currency, o.condition, o.in_stock, o.verdict) for o in offers],
+          None, None, o.condition, o.in_stock, None) for o in offers],
     )

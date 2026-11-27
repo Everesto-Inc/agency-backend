@@ -1,29 +1,33 @@
-# Topic 2 (cheapest product finder) parameters. Hot-reloaded.
+# Topic 2 (Product Finder — a CrewAI research agent) parameters. Hot-reloaded.
 
 search:
   # Country when the shopper names none (in the question or the conversation) — the answer says it was assumed.
   default_country: FR
-  max_queries: 4                # planner-proposed queries actually executed
-  results_per_query: 6
-  max_pages_to_check: 12        # pages fetched + extracted per run (cost bound)
   exclude_domains: [pinterest.com, youtube.com, reddit.com, facebook.com, wikipedia.org,
                     instagram.com, tiktok.com, x.com, twitter.com, quora.com]
-  # Retailers searched explicitly per country (in addition to open web search).
+  # The country's main shops: search_web(shops_only=true) searches only these.
   retailer_hints:
     US: [amazon.com, bestbuy.com, walmart.com, target.com, newegg.com, bhphotovideo.com]
     GB: [amazon.co.uk, argos.co.uk, currys.co.uk, johnlewis.com, ebay.co.uk]
     DE: [amazon.de, mediamarkt.de, saturn.de, otto.de, idealo.de, cyberport.de]
-    FR: [amazon.fr, fnac.com, darty.com, boulanger.com, cdiscount.com, ldlc.com]
+    FR: [amazon.fr, fnac.com, darty.com, boulanger.com, cdiscount.com, ldlc.com, rueducommerce.fr, ledenicheur.fr]
     IN: [amazon.in, flipkart.com, croma.com, reliancedigital.in]
     NP: [daraz.com.np, sastodeal.com, hamrobazaar.com]
-
-  # Mobile carriers: prices are often only valid with a phone plan — always read by the model, and offers that need
-  # a plan / contract are left out of the ranking (the answer says how many).
+  # Mobile carriers: prices are often only valid with a phone plan — always read by the model, which marks them.
   carrier_domains: [sfr.fr, bouyguestelecom.fr, orange.fr, sosh.fr, free.fr, red-by-sfr.fr,
                     telekom.de, vodafone.de, o2online.de, 1und1.de, congstar.de]
 
+research:
+  max_iterations: 12            # agent steps (one model call each): search → read → search again → answer
+  max_searches: 8               # per question
+  max_pages: 15                 # pages read per question (each may cost one cheap extraction call)
+  results_per_search: 6
+  snippet_chars: 400
+  page_text_chars: 5000         # page text the agent reads (tokens)
+  tool_timeout_s: 90
+  history_chars: 4000           # per earlier message in the chat (follow-ups need the earlier table)
+
 fetch:
-  concurrency: 6
   timeout_s: 12
   max_bytes: 1500000
   max_text_chars: 12000         # page text sent to the extractor (token bound)
@@ -35,7 +39,3 @@ extraction:
 fx:
   url: https://api.frankfurter.app/latest   # ECB reference rates, no key
   cache_ttl_s: 21600
-
-ranking:
-  allowed_verdicts: [exact, variant]   # drop accessories/mismatches
-  top_n: 5

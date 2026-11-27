@@ -1,4 +1,12 @@
-"""TopicAgent: CrewAI planning/matching + deterministic verified-price pipeline."""
+"""TopicAgent: Product Finder — a CrewAI research agent with verified prices.
+
+    question (+ the chat) → research agent: search reviews/guides/shops, read pages, search again … → answer
+                            every search and page read is streamed as a status line ("Reading ldlc.com")
+    → price check: every price in the answer must have come from a tool, else "(not verified)" is added
+    → artifact: verified offers, pages read (with why a page gave no price), searches
+"""
+import asyncio
+import contextlib
 from collections.abc import AsyncIterator
 
 from fastapi import FastAPI
@@ -6,14 +14,13 @@ from fastapi import FastAPI
 from agency_platform.agents.base import AgentEvent, RunContext, TopicAgent
 from agency_platform.agents.sessions import with_history
 from agency_platform.cache import get_redis
+from agency_platform.security.guardrails import guardrail
 from agency_platform.tools.search import WebSearch
-from product_finder import offers as pipeline
 from product_finder import repository
 from product_finder.crews import CrewAICrews, Crews
 from product_finder.fx import FXRates
-from product_finder.models import Offer, SearchPlan
 from product_finder.params import params, settings
-from product_finder.ranking import rank, render_answer
+from product_finder.research import Research, mark_unverified
 
 
 class ProductFinderAgent(TopicAgent):
@@ -35,54 +42,44 @@ class ProductFinderAgent(TopicAgent):
 
     async def run(self, prompt: str, ctx: RunContext) -> AsyncIterator[AgentEvent]:
         assert self._search is not None and self._fx is not None
-        # the chat's last messages go along: "and in France?" refers to the product asked before
-        plan = await self._crews.plan(with_history(prompt, ctx.history, summary=ctx.summary),
-                                      default_country=params().search.default_country, ctx=ctx)
-        if plan.intent == "about_previous" and ctx.history:
-            # "which storage was that?" is about the answer already given: no new search, no changed product
-            yield AgentEvent.status("Answering from the results already shown", step="follow_up")
-            yield AgentEvent.answer(await self._follow_up(prompt, ctx))
-            return
-        yield AgentEvent.status(f"Looking for: {plan.product} ({plan.country_code}, {plan.currency})",
-                                step="plan", must_match=plan.must_match)
+        research = Research(ctx, self._search, self._fx, params().search.default_country)
+        question = with_history(prompt, ctx.history, max_chars=params().research.history_chars, summary=ctx.summary)
+        yield AgentEvent.status("Researching", step="research")
+        job = asyncio.create_task(self._crews.research(question, research, ctx))
+        try:
+            while not job.done() or not research.events.empty():
+                get = asyncio.ensure_future(research.events.get())
+                done, _ = await asyncio.wait({get, job}, return_when=asyncio.FIRST_COMPLETED)
+                if get in done:
+                    yield get.result()
+                else:
+                    get.cancel()
+            answer = job.result()
+        finally:
+            if not job.done():
+                job.cancel()
+                with contextlib.suppress(asyncio.CancelledError, Exception):
+                    await job
 
-        urls = await pipeline.candidate_urls(plan, self._search)
-        yield AgentEvent.status(f"Checking {len(urls)} retailer pages", step="search")
-        found = await pipeline.gather_offers(urls, ctx)
-        yield AgentEvent.status(f"Verified prices on {len(found)} pages", step="extract")
-
-        if found:
-            await pipeline.normalise(found, plan.currency, self._fx)
-            report = await self._crews.match(plan, found, ctx)
-            verdicts = {v.id: v for v in report.verdicts}
-            for o in found:
-                if v := verdicts.get(o.id):
-                    o.verdict, o.verdict_note = v.verdict, v.note
-            caveats = report.caveats
-            yield AgentEvent.status("Matched offers against the exact product", step="match")
-        else:
-            caveats = []
-
-        ranked = rank(found, plan)
-        await self._persist(ctx, plan, found)
-        yield AgentEvent.artifact("offers", {
-            "plan": plan.model_dump(),
-            "ranked": [o.model_dump() for o in ranked],
-            "all_verified": [o.model_dump() for o in found],
+        answer, flagged = mark_unverified(answer, research.evidence_text())
+        if flagged:
+            await guardrail("grounding", "flagged", topic="product_finder",
+                            detail=f"{len(flagged)} price(s) in the answer not seen in any tool result")
+        yield AgentEvent.artifact("research", {
+            "offers": [o.model_dump() for o in research.offers],
+            "trace": research.trace,
+            "pages_read": research.pages,
+            "searches": research.searches,
+            "unverified_prices": flagged,
         })
-        yield AgentEvent.answer(render_answer(plan, ranked, len(urls), caveats, found))
-
-    async def _follow_up(self, prompt: str, ctx: RunContext) -> str:
-        p = ctx.prompt("follow_up")
-        history = [{"role": m["role"], "content": m["content"]} for m in ctx.history[-6:]
-                   if m["role"] in ("user", "assistant")]
-        result = await ctx.llm.chat([{"role": "system", "content": p.system}, *history,
-                                     {"role": "user", "content": prompt}], task="direct", prompt=p)
-        return (result.content or "").strip() or "I don't have that detail in the results above."
-
-    async def _persist(self, ctx: RunContext, plan: SearchPlan, found: list[Offer]) -> None:
-        if not found:
+        await self._persist(ctx, prompt, research)
+        if not answer:
+            yield AgentEvent.error("The research ended without an answer. Please try again.", code="NO_ANSWER")
             return
-        await repository.record_offers(
-            request_id=ctx.request_id, product=plan.product, country_code=plan.country_code, offers=found
-        )
+        yield AgentEvent.answer(answer)
+
+    async def _persist(self, ctx: RunContext, question: str, research: Research) -> None:
+        if not research.offers:
+            return
+        await repository.record_offers(request_id=ctx.request_id, product=question[:200],
+                                       country_code=research.default_country, offers=research.offers)

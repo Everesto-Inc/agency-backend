@@ -1,7 +1,7 @@
 [project]
 name = "topic-product-finder"
 version = "0.1.0"
-description = "Topic 2: cheapest product finder (CrewAI) with price verification and FX normalisation."
+description = "Topic 2: product research agent (CrewAI + tools) with prices verified on shop pages."
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "agency-platform",

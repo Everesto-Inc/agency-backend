@@ -14,7 +14,5 @@ def test_crewai_locks_use_a_local_file_not_redis(monkeypatch):
 
 
 def test_default_country_comes_from_config_not_us():
-    from product_finder.models import SearchPlan
     from product_finder.params import params
     assert params().search.default_country == "FR"
-    assert SearchPlan(product="x", queries=["x"]).country_code == "FR"

@@ -6,7 +6,7 @@
 |---|---|---|
 | **edge gateway** | Public API: register/login (JWT), `/chat` routing, topic catalogue, usage, dashboards, admin | topics, model gateway (topic classification), MySQL, Redis |
 | **EV Helper** | LangGraph state machine: parse → crawl + verify facts → calculate → write answer | model gateway, Tavily, web pages, MySQL (fact cache), Redis |
-| **Product Finder** | CrewAI crews: plan the search → find shops → extract + verify prices → rank | model gateway, Tavily, shops, MySQL (offer history), Redis |
+| **Product Finder** | CrewAI research agent with tools: search reviews/guides/shops → read pages (prices verified on the page by code) → search again → answer; every price in the answer checked against what the tools returned | model gateway, Tavily, shops, MySQL (offer history), Redis |
 | **Finance Analyst** | AutoGen team: data analyst + strategist + compliance reviewer | model gateway, market data, Redis |
 | **model gateway** | The only service with the Gemini key. Picks the model tier, falls back, caches, redacts PII, records every call | Gemini, MySQL (`llm_calls`, `usage_daily`), Redis (live quotas) |
 | **quality worker** | Jobs: offline evals + gate, online LLM-judge, drift, data retention, smoke test | the APIs above, MySQL |

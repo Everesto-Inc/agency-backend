@@ -37,9 +37,9 @@ topics:
     framework: crewai
     service_url: http://topic-product-finder:8000
     description: >-
-      Finds the cheapest current offers for a product across many online
-      retailers, verifies each price against the source page, and ranks them by
-      total cost.
+      Researches products like a knowledgeable friend: reads reviews and buying
+      guides to find what fits (or takes the exact product you name), then checks
+      shop pages for current prices — every price verified on the page.
     keywords: [cheapest, "best price", "lowest price", buy, deal, discount, price,
                shop, "where to buy", retailer, offer, coupon]
     run_timeout_s: 240

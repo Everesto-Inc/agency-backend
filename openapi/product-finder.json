@@ -585,7 +585,7 @@
   },
   "tags": [
     {
-      "description": "Finds the cheapest current offers for a product across many online retailers, verifies each price against the source page, and ranks them by total cost. Framework: crewai.",
+      "description": "Researches products like a knowledgeable friend: reads reviews and buying guides to find what fits (or takes the exact product you name), then checks shop pages for current prices — every price verified on the page. Framework: crewai.",
       "name": "Cheapest Product Finder"
     }
   ]
